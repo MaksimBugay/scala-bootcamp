@@ -1,0 +1,198 @@
+= Introduction to streaming libraries
+
+== What are they
+
+Streams are more wide and general than you can think. If we look around, all processes in our life can be considered in terms of streams.
+
+[cols="h,2,2"]
+|===
+||Single |Multiple
+
+|Synchronous
+|`A`
+|`Iterable[A]`
+
+|Asynchronous
+|`Future[A]`, `IO[A]`
+|Streaming libraries
+|===
+// Table borrowed from Monix documentation
+
+* A kind of collection, with focus on not storing all elements at once, potentially and usually infinite
+* Supports asynchronous transformations
+* Handles backpressure
+
+== Backpressure
+
+Consider a system with a producer continually sending data to a consumer.
+
+[mermaid]
+....
+graph LR
+Producer -- Data --> c[Consumer]
+....
+
+Those can be chained.
+
+[mermaid]
+....
+graph LR
+Producer --> Consumer/Producer --> Consumer
+....
+
+What if producer can generate more data than consumer can process?
+
+[mermaid]
+....
+graph LR
+P["Produces 100 items/second"] --> C["Can process 75 items/second"]
+....
+
+Extra 25 items/second have to be dealt with.
+
+Backpressure refers to the ability of producer to slow down
+to match downstream processing speed.
+
+== Typical architectures
+=== Push-based
+[mermaid]
+....
+sequenceDiagram
+participant P as Producer
+participant CP as Consumer/Producer
+participant C as Consumer
+
+activate P
+P ->> CP: Data
+deactivate P
+activate CP
+CP ->> C: Data
+deactivate CP
+activate C
+C --) CP: I'm done
+deactivate C
+CP --) P: I'm done
+....
+
+Producer keeps sending data to consumer, and there's a way for consumer to slow down producer.
+
+* Easier buffering/throttling
+* Easier time-based operations, e.g. "take elements in first 10 seconds of stream"
+
+=== Pull-based
+[mermaid]
+....
+sequenceDiagram
+participant P as Producer
+participant CP as Consumer/Producer
+participant C as Consumer
+
+C ->> CP: Give me data
+CP ->> P: Give me data
+activate P
+P -->> CP: Data
+deactivate P
+activate CP
+CP -->> C: Data
+deactivate CP
+....
+
+Producer does nothing until consumer explicitly requests data.
+
+* Backpressured by construction
+* Producer is essentially `F[Seq[Data]]`
+* Generally easier to reason about
+
+== Libraries
+[IMPORTANT]
+====
+This table is not about comparing libraries, but providing general info instead
+====
+
+[cols="h,1,1,1,1"]
+|===
+|Library|fs2|zio|akka-streams|monix (Observable)
+
+|General info
+|Purely functional, integrates very well with cats-effect. Built on recursive Pull data type
+|Purely functional, is a part of ZIO ecosystem
+|Internally runs on akka actors and integrates very well with them
+|`Future`-based internals, mostly pure user-facing API. Implements ReactiveX in Scala. WARNING: It don't have CE3 compatible version hence can't be used in a project depending on CE3
+
+|Push vs Pull based
+|Pull
+|Pull
+|Push
+|Push (has an `Iterant`, analog on fs2's `Pull` which is Pull based)
+
+|Evaluated in
+|Supports arbitrary `F` implementing cats-effect type classes
+|Runs on ZIO
+|Only accepts `Future` for async transformation and produces `Future` once materialized
+|Supports arbitrary `F` implementing cats-effect type classes
+
+|Basic concepts
+|Source - `Stream[F, O]`, Pipe - `Pipe[F, O1, O2]`, Sink - `Stream[F, Unit]`, compiles into `F[A]` via `stream.compile.`
+|Source - `ZStream[R, E, O]`, Pipe - `ZPipeline[R, E, O1, O2]`, Sink - `ZSink[R, E, I, L, Z]`, compiles into `ZIO[R, E, Z]` via `stream.run(sink)`
+|Source - `Source[Out, Mat]`, Pipe - `Flow[In, Out, Mat]`, Sink - `Sink[In, Mat]`, materialises into `RunnableGraph[Mat3]` via `source.toMat(sink)((Mat, Mat2) => Mat3)`, `RunnableGraph` then ran with `graph.run()`
+|Source - `Observable[O]`, Pipe - `Observable[O1] => Observable[O2]`, Sink - `Consumer[O, R]`, compiles into a `Task[R]` or `F[R]` via `observer.consumeWith(consumer)`
+|===
+
+=== Others
+* A number of java libraries: RxJava, Project Reactor, etc.
+
+=== Interop
+
+http://www.reactive-streams.org[Reactive Streams] - set of interfaces,
+specifically for interoperation between streaming libraries while preserving backpressure.
+
+All covered libraries allows us to implement systems following that.
+
+== Format
+
+* Word-count example
+* Inputs
+* Processing
+** Asynchronous transformations
+** Running FSMs, stateful transformations
+* Outputs
+* Non-linear pipelines
+
+
+== Which library to use
+
+* *The one already in classpath*
+** `http4s` uses FS2
+** `akka-http` uses Akka Streams
+** `zio-http` uses zio-streams
+* Consider integrations with other systems, e.g. Kafka clients.
+
+
+== Learning more
+
+* All covered libraries have excellent scaladocs
+* Online documentation
+** https://fs2.io/#/getstarted/install[FS2]
+** https://zio.dev/reference/stream/[ZIO]
+** https://doc.akka.io/docs/akka/current/stream/index.html[Akka Streams]
+** https://monix.io/docs/current/[Monix]
+
+
+== Finite-state Machines
+https://en.wikipedia.org/wiki/Finite-state_machine[Finite-state machine] is defined by
+
+* Set of inputs `I`
+* Set of states `S`, with designated initial state `S0`
+* Transition function `(S, I) => S`, "when in state S and receiving input I, transition to another state"
+
+Why:
+
+* Processes inputs one at time
+* Needs to keep only one element of state `S` in memory
+
+Common subtypes:
+
+* Acceptors: either accept input, or not. Also known as "regular expressions".
+* Transducers: produce output depending on state/input
+** There's an additional set of outputs `O`
+** Transition function becomes `(S, I) => (S, O)`
