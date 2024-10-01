@@ -4,6 +4,7 @@ import java.io.FileNotFoundException
 import java.time.Month
 import scala.annotation.tailrec
 import scala.io.Source
+import scala.reflect.runtime.universe.reify
 import scala.util.{Failure, Success, Try}
 
 object ControlStructures {
@@ -116,9 +117,39 @@ object ControlStructures {
   // A function which calls itself is called a recursive function. This is a commonly used way how to
   // express looping constructs in Functional Programming languages.
 
-  def sum1(list: List[Int]): Int =
-    if (list.isEmpty) 0
-    else list.head + sum1(list.tail)
+  def sum1(list: List[Int]): Int = list match {
+    case Nil => 0
+    case head :: tail => head + sum1(tail)
+  }
+
+  @tailrec
+  def sumTail(list: List[Int], acc: Int = 0): Int = list match {
+    case Nil => acc
+    //case head :: Nil => acc + head
+    case head :: tail => sumTail(tail, acc + head)
+  }
+
+  class AdvCollection[A] {
+
+    @tailrec
+    final def sumTail(list: List[Int], acc: Int = 0): Int = list match {
+      case Nil => acc
+      case head :: tail => sumTail(tail, acc + head)
+    }
+
+    def multiply(list: List[Int]): Long = {
+      @tailrec
+      def loop(list: List[Int], acc: Int = 1): Long = list match {
+        case Nil => acc
+        case head :: tail => loop(tail, acc * head)
+      }
+
+      list match {
+        case Nil => 0
+        case _ => loop(list)
+      }
+    }
+  }
 
   // Question. What are the risks of List#head and List#tail? How can you refactor `sum1` to avoid these invocations?
 
@@ -152,16 +183,28 @@ object ControlStructures {
   // returns a function which applies the function `f` `n` times.
   //
   // Thus `applyNTimesForInts(_ + 1, 4)(3)` should return `((((3 + 1) + 1) + 1) + 1)` or `7`.
-  def applyNTimesForInts(f: Int => Int, n: Int): Int => Int = { x: Int =>
-    f(x + n) // replace with a correct implementation
+  def applyNTimesForInts(f: Int => Int, n: Int): Int => Int = {
+    case x if x <= 0 => x
+    case x => applyNTimesForInts(f, n - 1)(f(x))
+  }
+
+  def applyNTimesForInts2(f: Int => Int, n: Int): Int => Int = { x: Int =>
+    @tailrec
+    def loop(m: Int, acc: Int): Int = m match {
+      case 0 => acc
+      case _ => loop(m - 1, f(acc))
+    }
+
+    loop(n, x)
   }
 
   // Exercise: Convert the function `applyNTimesForInts` into a polymorphic function `applyNTimes`:
   def applyNTimes[A](f: A => A, n: Int): A => A = { x: A =>
     // replace with correct implementation
-    println(n)
-    f(x)
+    List.range(0, n).foldLeft(x)((acc, _) => f(acc))
   }
+
+
 
   // `map`, `flatMap` and `filter` are not control structures, but methods that various collections (and
   // not only collections) have. We will discuss them now as they are important to understand a key
@@ -248,8 +291,46 @@ object ControlStructures {
     y <- b // generator
   } yield x + y
 
-  // Question. What is the value of `e` above?
+  sealed abstract class OurOption[+A] {
+    def map[B](f: A => B): OurOption[B] = this match {
+      case OurNone => OurNone
+      case OurSome(value) => OurSome(f(value))
+    }
 
+    def flatMap[B](f: A => OurOption[B]): OurOption[B] = this match {
+      case OurNone => OurNone
+      case OurSome(value) => f(value)
+    }
+
+    def withFilter(p: A => Boolean): OurOption[A] = this match {
+      case OurSome(value) if p(value) => this
+      case _ => OurNone
+    }
+  }
+
+  case object OurNone extends OurOption[Nothing]
+
+  case class OurSome[A](value: A) extends OurOption[A]
+
+  val opt1: OurOption[Int] = OurSome(11)
+  val opt2: OurOption[Int] = OurNone
+
+  val result = for {
+    num1 <- opt1
+    if num1 > 5
+    num2 <- opt2
+  } yield num1 + num2
+  // Question. What is the value of `e` above?
+  def main(args: Array[UserId]): Unit = {
+    println(result)
+    println(reify {
+      for {
+        num1 <- opt1
+        if num1 > 5
+        num2 <- opt2
+      } yield num1 + num2
+    })
+  }
   // In idiomatic functional Scala, much of the code ends up written in "for comprehensions".
   // Exercise. Implement `makeTransfer` using `for` comprehensions and the methods provided in `UserService`.
 
@@ -273,13 +354,29 @@ object ControlStructures {
     toUserWithName: String,
     amount: Amount,
   ): Either[ErrorMessage, (Amount, Amount)] = {
+
+    println(s"$service, $fromUserWithName, $toUserWithName, $amount")
+    import service._
+    for {
+      _ <- validateUserName(fromUserWithName)
+      _ <- validateUserName(toUserWithName)
+
+      fromUserId <- findUserId(fromUserWithName)
+      toUserId <- findUserId(toUserWithName)
+
+      _ <- validateAmount(amount)
+
+      fromBalance <- findBalance(fromUserId)
+      toBalance <- findBalance(toUserId)
+
+      updatedFromBalance <- updateAccount(fromUserId, fromBalance, -amount)
+
+      updatedToBalance <- updateAccount(toUserId, toBalance, amount)
+    } yield (updatedFromBalance, updatedToBalance)
     // Replace with a proper implementation that uses validateUserName on each name,
     // findUserId to find UserId, validateAmount on the amount, findBalance to find previous
     // balances, and then updateAccount for both userId-s (with a positive and negative
     // amount, respectively):
-    println(s"$service, $fromUserWithName, $toUserWithName, $amount")
-    import service._
-    ???
   }
 
   // Question. What are the questions would you ask - especially about requirements - before implementing
@@ -292,14 +389,17 @@ object ControlStructures {
   // Exercise:
   //
   // Given:
-  //  A = Set(0, 1, 2)
-  //  B = Set(true, false)
+  private val A = Set(0, 1, 2)
+  private val B = Set(true, false)
   //
   // List all the elements in `A * B`.
   //
   // Use a "for comprehension" in your solution.
 
-  val AProductB: Set[(Int, Boolean)] = Set()
+  val AProductB: Set[(Int, Boolean)] = for {
+    a <- A
+    b <- B
+  } yield (a, b)
 
   // Exercise:
   //
@@ -311,7 +411,8 @@ object ControlStructures {
   //
   // Use "map" and `++` (`Set` union operation) in your solution.
 
-  val ASumB: Set[Either[Int, Boolean]] = Set()
+
+  val ASumB: Set[Either[Int, Boolean]] = A.map(Left(_)) ++ B.map(Right(_))
 
   // Scala inherits the standard try-catch-finally construct from Java:
   def printFile(fileName: String): Unit = {
@@ -335,7 +436,11 @@ object ControlStructures {
 
   // One of these other mechanisms is `Try[A]` which can be thought of as an `Either[Throwable, A]`:
 
+  import cats.syntax.either._
   def parseInt1(x: String): Try[Int] = Try(x.toInt)
+  def parseInt2(x: String): Option[Int] = x.toIntOption
+  def parseInt3(x: String): Either[String, Int] = Try(x.toInt)
+    .toEither.leftMap(e => s"Failed to parse $x: ${e.getMessage}")
 
   parseInt1("asdf") match {
     case Success(value) => println(value)

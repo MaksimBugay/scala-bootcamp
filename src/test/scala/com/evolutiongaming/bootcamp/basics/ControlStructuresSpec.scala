@@ -127,7 +127,7 @@ class ControlStructuresSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChe
 
   "applyNTimesForInts" should "work correctly" in {
     forAll(choose(1, 1000), choose(1, 1000)) { case (a: Int, b: Int) =>
-      applyNTimesForInts(_ + 1, a)(b) shouldEqual a + b
+      applyNTimesForInts2(_ + 1, a)(b) shouldEqual a + b
     }
   }
 
