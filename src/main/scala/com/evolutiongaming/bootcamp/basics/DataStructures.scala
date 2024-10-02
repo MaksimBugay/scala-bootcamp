@@ -123,16 +123,25 @@ object DataStructures {
   // Exercise. Calculate the total cost of all vegetables, taking vegetable amounts (in units) from
   // `vegetableAmounts` and prices per unit from `vegetablePrices`. Assume the price is 10 if not available
   // in `vegetablePrices`.
-  val totalVegetableCost: Int = {
-    17 // implement here
+  val totalVegetableCost: Int = vegetableAmounts.map {
+    case (vegetable, amount) =>
+      val price = vegetablePrices.getOrElse(vegetable, 10)
+      amount * price
+  }.sum
+
+  def main(args: Array[String]): Unit = {
+    println(totalVegetableCost)
   }
 
   // Exercise. Given the vegetable weights (per 1 unit of vegetable) in `vegetableWeights` and vegetable
   // amounts (in units) in `vegetableAmounts`, calculate the total weight per type of vegetable, if known.
   //
   // For example, the total weight of "olives" is 2 * 32 == 64.
-  val totalVegetableWeights: Map[String, Int] = { // implement here
-    Map()
+  val totalVegetableWeights: Map[String, Int] = vegetableAmounts.flatMap {
+    case (vegetable, amount) =>
+      vegetableWeights.get(vegetable).map { weightPerUnit =>
+        vegetable -> (weightPerUnit * amount)
+      }
   }
 
   // Ranges and Sequences
@@ -192,10 +201,34 @@ object DataStructures {
   //   - Handle the trivial case where `n == 1`.
   //   - For other `n`, for each `set` element `elem`, generate all subsets of size `n - 1` from the set
   //     that don't include `elem`, and add `elem` to them.
+  def allSubsetsOfSizeN0[A](set: Set[A], n: Int): Set[Set[A]] = {
+    if (n == 0) Set(Set())  // The only subset of size 0 is the empty set
+    else if (n == 1) set.map(e => Set(e)) // For size 1, return each element as a set
+    else set.flatMap { elem =>
+      // Generate subsets of size n - 1 from the remaining set (set - elem)
+      allSubsetsOfSizeN0(set - elem, n - 1).map(subset => subset + elem)
+    }
+  }
+
   def allSubsetsOfSizeN[A](set: Set[A], n: Int): Set[Set[A]] = {
-    // replace with correct implementation
-    println(n)
-    Set(set)
+    @annotation.tailrec
+    def subsetsHelper(remaining: List[A], n: Int, acc: Set[Set[A]]): Set[Set[A]] = {
+      if (n == 0) acc // If n is 0, we've built all valid subsets
+      else if (remaining.isEmpty) acc // No more elements to process
+      else {
+        val elem = remaining.head
+        val tail = remaining.tail
+
+        // For each subset in acc, either include the current element or don't
+        val newAcc = acc ++ acc.map(_ + elem)
+
+        // Tail-recursive call with remaining elements
+        subsetsHelper(tail, n, newAcc)
+      }
+    }
+
+    // We start with an accumulator containing the empty set
+    subsetsHelper(set.toList, n, Set(Set.empty[A])).filter(_.size == n)
   }
 
   // Homework
@@ -215,5 +248,16 @@ object DataStructures {
   //
   // Input `Map("a" -> 1, "b" -> 2, "c" -> 4, "d" -> 1, "e" -> 0, "f" -> 2, "g" -> 2)` should result in
   // output `List(Set("e") -> 0, Set("a", "d") -> 1, Set("b", "f", "g") -> 2, Set("c") -> 4)`.
-  def sortConsideringEqualValues[T](map: Map[T, Int]): List[(Set[T], Int)] = ???
+  def sortConsideringEqualValues[T](map: Map[T, Int]): List[(Set[T], Int)] = {
+    // Step 1: Group keys by their associated values
+    val groupedByValue: Map[Int, Set[T]] = map.groupBy(_._2).view.mapValues(_.keySet).toMap
+
+    // Step 2: Sort by the numeric values (the keys of the groupedByValue map)
+    val sortedByValue: List[(Set[T], Int)] = groupedByValue.toList.sortBy(_._1).map {
+      case (value, setOfKeys) => (setOfKeys, value)
+    }
+
+    // Return the sorted list of (Set, Int) tuples
+    sortedByValue
+  }
 }
