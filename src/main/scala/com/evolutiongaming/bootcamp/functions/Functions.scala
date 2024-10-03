@@ -1,6 +1,7 @@
 package com.evolutiongaming.bootcamp.functions
 
 import java.time.Instant
+import scala.util.Try
 
 object Functions {
 
@@ -34,13 +35,15 @@ object Functions {
   def processText2(message: String, f: String => String): String = f(message)
 
   // Exercise. Implement `isEven` method that checks if a number is even.
-  def isEven(n: Int): Boolean = ???
+  def isEven(n: Int): Boolean = n % 2 == 0
 
   // Exercise. Implement `isEvenFunc` function that behaves exactly like `isEven` method.
-  val isEvenFunc: Int => Boolean = n => ???
+  val isEvenFunc: Int => Boolean = n => n % 2 == 0
 
   // Exercise. Implement `isEvenMethodToFunc` function by transforming `isEven` method into a function.
-  val isEvenMethodToFunc: Int => Boolean = n => ???
+  val isEvenMethodToFunc: Int => Boolean = isEven
+
+  val isEvenMethodToFunc2 = isEven _
 
   // There are traits in Scala to represent functions with various numbers of arguments: `Function0`,
   // `Function1`, `Function2`, etc. So `(A => B)` is the same as `Function1[A, B]`. A trait, where
@@ -72,17 +75,20 @@ object Functions {
   trait MyMap[K, V] extends (K => V)
 
   // Question. What function should we extend to check if an element belongs to a set?
-  trait MySet[A] // extends ???
+  trait MySet[A] extends (A => Boolean)
 
   // Question. What function should we extend to return a value by its index?
-  trait MySeq[A] // extends ???
+  trait MySeq[A] extends (Int => A)
 
   // POLYMORPHIC FUNCTIONS
 
   // Polymorphic functions have at least one type parameter.
 
   // Exercise. Implement `mapOption` function without calling `Option` APIs.
-  def mapOption[A, B](option: Option[A], f: A => B): Option[B] = ???
+  def mapOption[A, B](option: Option[A], f: A => B): Option[B] = option match {
+    case Some(value) => Some(f(value))
+    case None => None
+  }
 
   // FUNCTION COMPOSITION
 
@@ -183,20 +189,32 @@ object Functions {
   // Exercises. Convert the following functions into pure functions. Replace ??? with correct return types.
 
   def parseDate(s: String): Instant = Instant.parse(s)
-  def parseDatePure(s: String): ??? = ???
+  def parseDatePure(s: String): Either[Throwable, Instant] = Try(Instant.parse(s)).toEither
 
   def divide(a: Int, b: Int): Int     = a / b
-  def dividePure(a: Int, b: Int): ??? = ???
+
+  def dividePure(a: Int, b: Int): Option[Double] = b match {
+    case 0 => None
+    case _ => Option(a / b)
+  }
 
   def isAfterNow(date: Instant): Boolean   = date.isAfter(Instant.now())
   def isAfterNowPure( /* ??? */ ): Boolean = ???
+
+  private def isAfterNowPure0(now: Instant, date: Instant): Boolean = date.isAfter(now)
+  private val isAfterDateCurried: Instant => Instant => Boolean = (isAfterNowPure0 _).curried
+  val isAfterNow: Instant => Boolean = isAfterDateCurried(Instant.now())
 
   case class NonEmptyList[T](head: T, rest: List[T])
   def makeNonEmptyList[T](list: List[T]): NonEmptyList[T] = {
     if (list.isEmpty) println("Error: list must not be empty")
     NonEmptyList(list.head, list.tail)
   }
-  def makeNonEmptyListPure[T](list: List[T]): ???         = ???
+
+  def makeNonEmptyListPure[T](list: List[T]): Option[NonEmptyList[T]] = list match {
+    case Nil => None
+    case head :: tail => Option(NonEmptyList(head, tail))
+  }
 
   // Attributions and useful links:
   // https://jim-mcbeath.blogspot.com/2009/05/scala-functions-vs-methods.html

@@ -123,12 +123,18 @@ object DataStructures {
   // Exercise. Calculate the total cost of all vegetables, taking vegetable amounts (in units) from
   // `vegetableAmounts` and prices per unit from `vegetablePrices`. Assume the price is 10 if not available
   // in `vegetablePrices`.
-  val totalVegetableCost: Int = vegetableAmounts.map {
+  val totalVegetableCost0: Int = vegetableAmounts.map {
     case (vegetable, amount) =>
       val price = vegetablePrices.getOrElse(vegetable, 10)
       amount * price
   }.sum
 
+  val totalVegetableCost: Int = {
+    (for {
+      (vegetable: String, amount: Int)  <- vegetableAmounts
+      price = vegetablePrices.getOrElse(vegetable, 10) * amount
+    } yield price).sum
+  }
   def main(args: Array[String]): Unit = {
     println(totalVegetableCost)
   }
@@ -137,11 +143,18 @@ object DataStructures {
   // amounts (in units) in `vegetableAmounts`, calculate the total weight per type of vegetable, if known.
   //
   // For example, the total weight of "olives" is 2 * 32 == 64.
-  val totalVegetableWeights: Map[String, Int] = vegetableAmounts.flatMap {
+  val totalVegetableWeights0: Map[String, Int] = vegetableAmounts.flatMap {
     case (vegetable, amount) =>
       vegetableWeights.get(vegetable).map { weightPerUnit =>
         vegetable -> (weightPerUnit * amount)
       }
+  }
+
+  val totalVegetableWeights: Map[String, Int] = {
+    for {
+      (vegetable, amount) <- vegetableAmounts
+      weight <- vegetableWeights.get(vegetable)
+    } yield vegetable -> (weight * amount)
   }
 
   // Ranges and Sequences
