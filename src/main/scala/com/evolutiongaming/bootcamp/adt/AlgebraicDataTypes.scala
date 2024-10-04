@@ -1,5 +1,9 @@
 package com.evolutiongaming.bootcamp.adt
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
+import scala.util.Try
+
 object AlgebraicDataTypes {
 
   // ALGEBRAIC DATA TYPES
@@ -26,12 +30,12 @@ object AlgebraicDataTypes {
 
   // A product type is called like that because one can calculate how many different values it can possibly
   // have by multiplying the number of such possibilities for the types it combines. The resulting number
-  // is called the arity of the product type.
+  // is called the cardinality of the product type.
 
-  // Question. What is the arity of the product type `(Boolean, Boolean)`?
-  type DoubleBoolean = (Boolean, Boolean)
+  // Question. What is the cardinality of the product type `(Boolean, Boolean)`?
+  type DoubleBoolean = (Boolean, Boolean)//4
 
-  // Question. What is the arity of the product type `Person`?
+  // Question. What is the cardinality of the product type `Person`?
   final case class Person(name: String, surname: String, age: Int)
 
   // Question. `Int`, `Double`, `String`, etc. are useful types from the Scala standard library, which can
@@ -61,22 +65,61 @@ object AlgebraicDataTypes {
   // Question. Can you come up with an example, where using type aliases would make sense?
 
   // Exercise. Rewrite the product type `Person`, so that it uses value classes.
+  final case class PersonName(value: String) extends AnyVal
+  final case class PersonSurname(value: String) extends AnyVal
+  final case class PersonAge(value: Int) extends AnyVal
+
+  final case class Person0(name: PersonName, surname: PersonSurname, age: PersonAge)
 
   // SMART CONSTRUCTORS
 
   // Smart constructor is a pattern, which allows creating only valid instances of a class.
 
   // Exercise. Create a smart constructor for `GameLevel` that only permits levels from 1 to 80 (inclusive).
-  final case class GameLevel private (value: Int) extends AnyVal
+  final case class GameLevel private (val value: Int) extends AnyVal
+
+  object GameLevel0 {
+    def create(value: Int): Option[GameLevel] = value match {
+      case v if v > 0 && v < 81 => Option(GameLevel(value))
+      case _ => None
+    }
+  }
+
   object GameLevel {
-    def create(value: Int): Option[GameLevel] = ???
+    def create(value: Int): Option[GameLevel] = Option.when(value>0 && value<81)(GameLevel(value))
   }
 
   // To disable creating case classes in any other way besides smart constructor, the following pattern
   // can be used. However, it is rather syntax-heavy and cannot be combined with value classes.
   sealed abstract case class Time private (hour: Int, minute: Int)
+
   object Time {
-    def create(hour: Int, minute: Int): Either[String, Time] = Right(new Time(hour, minute) {})
+    def create(hour: Int, minute: Int): Either[String, Time] = {
+      for {
+        _ <- Either.cond(hour >= 0 && hour <= 23, (), "Invalid hour value")
+        _ <- Either.cond(minute >= 0 && minute < 60, (), "Invalid minute value")
+      } yield new Time(hour, minute) {}
+    }
+  }
+
+  sealed trait TimeError
+  final case object IllegalHours extends TimeError
+  final case object IllegalMinutes extends TimeError
+
+  sealed abstract case class Time0 private (hour: Int, minute: Int)
+  object Time0 {
+    def create(hour: Int, minute: Int): Either[TimeError, Time0] = {
+      for {
+        _ <- Either.cond(hour >= 0 && hour <= 23, (), IllegalHours)
+        _ <- Either.cond(minute >= 0 && minute < 60, (), IllegalMinutes)
+      } yield new Time0(hour, minute) {}
+    }
+  }
+
+  Time0.create(10, 61) match {
+    case Left(IllegalHours) => println("Invalid hour value")
+    case Left(IllegalMinutes) => println("Invalid minute value")
+    case Right(_) => println("All good")
   }
 
   // Exercise. Implement the smart constructor for `Time` that only permits values from 00:00 to 23:59 and
@@ -94,14 +137,38 @@ object AlgebraicDataTypes {
     final case object False extends Bool
   }
 
+  sealed trait TimeUnit {
+    def shortName(): String
+
+    def getValue(): String
+  }
+
+  object TimeUnit {
+    final case class Nanos(nanos: Long) extends TimeUnit {
+      override def shortName(): SurnameAlias = "n"
+
+      override def getValue(): SurnameAlias = nanos.toString
+    }
+    final case class Days(days: Int) extends TimeUnit {
+      override def shortName(): SurnameAlias = "d"
+
+      override def getValue(): SurnameAlias = days.toString
+    }
+  }
+
+  val timeUnit: TimeUnit = ???
+  val timeLeft: String = timeUnit match {
+    case TimeUnit.Nanos(nanos) => s"${timeUnit.shortName()} passed: $nanos"
+    case TimeUnit.Days(days) => s"${timeUnit.shortName()} passed: $days"
+  }
   // Note that sealed keyword means that `Bool` can only be extended in the same file as its declaration.
   // Question. Why do you think sealed keyword is essential to define sum types?
 
   // A sum type is called like that because one can calculate how many different values it can possibly
   // have by adding the number of such possibilities for the types it enumerates. The resulting number
-  // is called the arity of the sum type.
+  // is called the cardinality of the sum type.
 
-  // Question. What is the arity of the sum type `Bool`?
+  // Question. What is the cardinality of the sum type `Bool`?
 
   // The power of sum and product types is unleashed when they are combined together. For example, consider a
   // case where multiple different payment methods need to be supported. (This is an illustrative example and
@@ -135,7 +202,11 @@ object AlgebraicDataTypes {
     creditCardService: CreditCardService,
     cashService: CashService,
   ) {
-    def processPayment(amount: BigDecimal, method: PaymentMethod): PaymentStatus = ???
+    def processPayment(amount: BigDecimal, method: PaymentMethod): PaymentStatus = method match {
+      case BankAccount(accountNumber) => bankAccountService.processPayment(amount, accountNumber)
+      case creditCard: CreditCard => creditCardService.processPayment(amount, creditCard)
+      case PaymentMethod.Cash => cashService.processPayment(amount)
+    }
   }
 
   // Let's compare that to `NaivePaymentService.processPayment` implementation, which does not use ADTs, but
