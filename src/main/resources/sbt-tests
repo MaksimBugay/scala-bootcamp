@@ -1,0 +1,26 @@
+sbt --sbt-create
+
+show sourceDirectory
+show testDirectory
+
+dependencyTree
+
+compile/run
+
+ runMain Main2
+
+ package/ show package/
+
+ ~testQuick //run only tests that were affected by the recent changes
+
+ projects //list projects in multi-module code
+
+ update
+
+ inspect update //help for tasks
+
+ inspect services/libraryDependencies //analyze dependencies
+
+ show services/libraryDependencies //just show dependencies without originator info
+
+ inspect services/compile //analyze of sources
