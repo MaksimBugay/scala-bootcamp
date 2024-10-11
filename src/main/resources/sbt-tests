@@ -24,3 +24,8 @@ compile/run
  show services/libraryDependencies //just show dependencies without originator info
 
  inspect services/compile //analyze of sources
+
+ sbt dependencyBrowseGraph
+
+ feature packaging
+
