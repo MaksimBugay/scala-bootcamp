@@ -1,6 +1,10 @@
 package com.evolutiongaming.bootcamp.implicits
 
+import com.evolutiongaming.bootcamp.error_handling.ErrorHandling.Json
+
 import java.time.Instant
+import scala.language.postfixOps
+import scala.util.Try
 
 // *Implicits*
 //
@@ -46,24 +50,36 @@ object ImplicitClasses {
     // Exercise 1:
     // Implement a `pow` method which calculates a power of number.
     //
-    // I.e. `pow(4, 2) == 1` and `pow(3, 3) == 27`.
-    def pow(base: Int, exponent: Int): Int = ???
-
+    // I.e. `pow(4, 2) == 16` and `pow(3, 3) == 27`.
+    def pow(base: Int, exponent: Int): Int = {
+      @scala.annotation.tailrec
+      def loop(acc: Int, exp: Int): Int = {
+        if (exp == 0) acc
+        else loop(acc * base, exp - 1)
+      }
+      loop(1, exponent)
+    }
     // Exercise 2:
     // Implement a concat method which concatenates two positive `Int`
     // numbers into one.
     //
     // I.e. `concat(72, 456) == 72456`.
-    def concat(a: Int, b: Int): Int = ???
+    def concat(a: Int, b: Int): Int = {
+      val bDigits = math.log10(b).toInt + 1  // Number of digits in b
+      a * math.pow(10, bDigits).toInt + b    // Shift a left and add b
+    }
 
     // Exercise 3:
     // Implement a `toInstant` method which tries to parse a String
     // to a standard JVM instant representation.
-    def toInstant(string: String): Option[Instant] = ???
+    def toInstant(string: String): Option[Instant] = Try(Instant.parse(string)).toOption
 
     // Exercise 4:
     // Implement a `mean` method which calculates an average number.
-    def mean(list: List[Int]): Int = ???
+    def mean(list: List[Int]): Int = {
+      if (list.isEmpty) 0
+      else list.sum / list.size
+    }
 
     // What is a common thing among these methods?
     // Where would you place them in your application if implemented?
@@ -143,8 +159,8 @@ object ImplicitClasses {
   //
   object EvolutionUtils3 {
 
-    case class RichInt(a: Int) {
-      def pow(exponent: Int): Int = ???
+    case class RichInt(a: Int) extends AnyVal {
+      def pow(exponent: Int): Int = Math.pow(a, exponent).toInt
       def concat(b: Int): Int     = ???
     }
     case class RichString(a: String) {
@@ -196,7 +212,7 @@ object ImplicitClasses {
   //
   object EvolutionUtils4 {
 
-    implicit class RichInt(a: Int) {
+    implicit class RichInt(val a: Int) extends AnyVal {
       def pow(exponent: Int): Int = ???
       def concat(b: Int): Int     = ???
     }
@@ -215,10 +231,23 @@ object ImplicitClasses {
     // Use the new method directly on type without using a wrapper:
     RichInt(4).pow(2)
     RichInt(72).concat(456)
-    RichListInt((List(1, 2, 3, 4, 5))).mean
+    RichListInt(List(1, 2, 3, 4, 5)).mean
+
+    4 pow 2
+    72 concat 456
+    List(1, 2, 3, 4, 5).mean
+    //RichListInt(List(1, 2, 3, 4, 5)).mean
 
     // Do you find this way more convenient? More readable?
 
+  }
+
+  trait Json[A] {
+    def toJson(a: A): String
+  }
+
+  implicit class RichA[A](a: A) {
+    def toJson(json: Json[A]): String = ???
   }
 
 }

@@ -2,7 +2,7 @@ package com.evolutiongaming.bootcamp.implicits
 
 import scala.language.implicitConversions
 
-object ImplicitConversions extends App {
+object  ImplicitConversions extends App {
 
   // *Implicit conversions (advanced topic)*
   //
@@ -32,4 +32,34 @@ object ImplicitConversions extends App {
   // This should compile
   // println(7.pow(2))
 
+  object LibC {
+    trait Writer[A] {
+      def write(a: A): String
+    }
+  }
+
+  object LibA {
+    trait Json[A] {
+      def toJson(a: A): String
+    }
+  }
+
+  object LibB {
+
+    trait Serializable[A] {
+      def serialize(a: A): String
+    }
+  }
+
+  trait Foo
+
+  implicit val fooJson: LibB.Serializable[Foo] = _.toString
+
+  implicit def libBtoA[A](implicit s: LibB.Serializable[A]): LibA.Json[A] = ???
+
+  implicit def libCtoA[A](implicit json: LibA.Json[A]): LibC.Writer[A] = ???
+
+  def http200[A](a: A)(implicit json: LibC.Writer[A]): Unit = ???
+
+  http200(new Foo {})
 }

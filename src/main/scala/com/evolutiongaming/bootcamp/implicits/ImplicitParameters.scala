@@ -36,17 +36,37 @@ object ImplicitParameters {
     class CreditService {
 
       /** Gives money to wallet, creates a wallet if does not exist yet */
-      def credit(context: WalletContext, amount: BigDecimal): Unit = ???
+      def credit(context: WalletContext, amount: BigDecimal): Unit = {
+        context.read match {
+          case Some(value) => context.update(value - amount)
+          case None => ???
+        }
+      }
     }
+
     class DebitService {
 
       /** Removes money from wallet */
-      def debit(context: WalletContext, amount: BigDecimal): Unit = ???
+      def debit(context: WalletContext, amount: BigDecimal): Unit = {
+        context.read match {
+          case Some(value) => context.update(value + amount)
+          case None => {
+            context.create
+            context.update(amount)
+          }
+        }
+      }
     }
     class TransferService(creditService: CreditService, debitService: DebitService) {
 
       /** Either does credit or debit depending on the amount */
-      def transfer(context: WalletContext, amount: BigDecimal): Unit = ???
+      def transfer(context: WalletContext, amount: BigDecimal): Unit = {
+        if (amount >= 0) {
+          creditService.credit(context, amount)
+        } else {
+          debitService.debit(context, -amount)
+        }
+      }
     }
 
     // This is the way it could be called:
@@ -98,13 +118,19 @@ object ImplicitParameters {
     }
 
     class CreditService {
-      def credit(amount: BigDecimal)(context: WalletContext): Unit = ???
+      def credit(amount: BigDecimal)(implicit context: WalletContext): Unit = ???
     }
     class DebitService {
-      def debit(amount: BigDecimal)(context: WalletContext): Unit = ???
+      def debit(amount: BigDecimal)(implicit context: WalletContext): Unit = ???
     }
     class TransferService(creditService: CreditService, debitService: DebitService) {
-      def transfer(amount: BigDecimal)(context: WalletContext): Unit = ???
+      def transfer(amount: BigDecimal)(implicit context: WalletContext): Unit = {
+        if (amount >= 0) {
+          creditService.credit(amount)
+        } else {
+          debitService.debit(-amount)
+        }
+      }
     }
 
     // This is the way it could be called:
@@ -113,12 +139,12 @@ object ImplicitParameters {
     }
     class WalletController(walletRepository: WalletRepository, transferService: TransferService) {
       def bet(userId: String, amount: BigDecimal): Unit   = {
-        val walletContext = walletRepository.getWallet(userId)
-        transferService.transfer(-amount)(walletContext)
+        implicit val walletContext: WalletContext = walletRepository.getWallet(userId)
+        transferService.transfer(-amount)
       }
       def award(userId: String, amount: BigDecimal): Unit = {
-        val walletContext = walletRepository.getWallet(userId)
-        transferService.transfer(amount)(walletContext)
+        implicit val walletContext: WalletContext = walletRepository.getWallet(userId)
+        transferService.transfer(amount)
       }
     }
 
@@ -167,7 +193,7 @@ object ImplicitParameters {
       def debit(amount: BigDecimal)(context: WalletContext): Unit = ???
     }
     class TransferService(creditService: CreditService, debitService: DebitService) {
-      def transfer(amount: BigDecimal)(context: WalletContext): Unit = ???
+      def transfer(amount: BigDecimal)(implicit context: WalletContext): Unit = ???
     }
 
     // This is the way it could be called:
@@ -176,8 +202,8 @@ object ImplicitParameters {
     }
     class WalletController(walletRepository: WalletRepository, transferService: TransferService) {
       def bet(userId: String, amount: BigDecimal): Unit   = {
-        val walletContext = walletRepository.getWallet(userId)
-        transferService.transfer(-amount)(walletContext)
+        implicit val walletContext: WalletContext = walletRepository.getWallet(userId)
+        transferService.transfer(-amount)
       }
       def award(userId: String, amount: BigDecimal): Unit = {
         val walletContext = walletRepository.getWallet(userId)
@@ -202,4 +228,16 @@ object ImplicitParameters {
   // Note: I will tell you about advanced pattern shortly, no need to demand
   // your money back.
 
+  trait Json[A] {
+    def toJson(a: A): String
+  }
+
+  implicit class JsonOps[A](val a: A) extends AnyVal {
+    def toJson(implicit json: Json[A]): String = json.toJson(a)
+  }
+
+  implicit val jsonInt: Json[Int] = new Json[Int] {
+    override def toJson(a: Int): String = a.toString
+  }
+  34.toJson
 }
