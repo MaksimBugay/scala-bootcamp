@@ -69,3 +69,4 @@ dogPrinters.map(_.apply(Dog()))
 
 val animalPrinters: Printers[Animal] = dogPrinters.asInstanceOf[Printers[Animal]]
 // animalPrinters.map(_.apply(Cat()))
+
