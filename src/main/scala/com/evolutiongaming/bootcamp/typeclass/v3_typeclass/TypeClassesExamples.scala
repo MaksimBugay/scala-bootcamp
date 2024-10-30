@@ -1,5 +1,6 @@
 package com.evolutiongaming.bootcamp.typeclass.v3_typeclass
 
+import cats.Semigroupal
 import cats.data.NonEmptyList
 import com.evolutiongaming.bootcamp.typeclass.Manual.Semigroup
 import com.evolutiongaming.bootcamp.typeclass.v3_typeclass.TypeClassesExamples.Semigroupal
@@ -179,8 +180,8 @@ object TypeClassesExamples extends App {
     }
   }
 
-   (Option(1), Option(2)).mapN(_ + _) == Some(3)
-   (Option(1), None).mapN(_ + _)      == None
+   //(Option(1), Option(2)).mapN(_ + _) == Some(3)
+   //(Option(1), None).mapN(_ + _)      == None
 
   // 4.6. Implement Semigroupal for Map
 
