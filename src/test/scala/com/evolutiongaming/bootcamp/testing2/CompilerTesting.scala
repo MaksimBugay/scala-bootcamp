@@ -42,7 +42,7 @@ object PowerfulScala {
   //
   def energy(mass: String): String = {
     val speedOfLight = BigDecimal(299792458)
-    val energy       = BigDecimal(mass) * speedOfLight.pow(2)
+    val energy = BigDecimal(mass) * speedOfLight.pow(2)
     energy.toString
   }
 }
@@ -66,7 +66,8 @@ object RefinedScala {
   // how to avoid bugs without having the actual unit tests: smart constructors.
   //
   // Like these:
-  case class PositiveNumber private (val value: Int) extends AnyVal
+  case class PositiveNumber private(val value: Int) extends AnyVal
+
   object PositiveNumber {
     def create(value: Int): Option[PositiveNumber] =
       if (value > 0) Some(PositiveNumber(value)) else None
@@ -81,12 +82,12 @@ object RefinedScala {
   // There is a library allowing to check the properties of the types during
   // compilation, i.e you have the same good old types, but with limitations:
   case class DatabaseConfig(
-    host: String Refined IPv4,
-    timeoutMilliseconds: Int Refined NonNegative,
-  )
+                             host: String Refined IPv4,
+                             timeoutMilliseconds: Int Refined NonNegative,
+                           )
 
   // You can do this:
-  val config           = DatabaseConfig(host = "127.0.0.1", timeoutMilliseconds = 16)
+  val config = DatabaseConfig(host = "127.0.0.1", timeoutMilliseconds = 16)
   val timeoutInSeconds = config.timeoutMilliseconds / 1000
 
   // But you cannot do any of these (try uncommenting them):
@@ -95,13 +96,13 @@ object RefinedScala {
 
   // It is also possible to perform validation at runtime using `refine` macros:
   // as you can see, it returns `Either` with the possible error case
-  val hostFromUserInput: String                   = ""
+  val hostFromUserInput: String = ""
   val host: Either[String, Refined[String, IPv4]] =
     refineV[IPv4](hostFromUserInput)
 
   // It is possible to pass values of more specific types as more general type
   val largerThanSix: Int Refined Greater[6] = 7
-  val posInt: Int Refined Positive          = largerThanSix
+  val posInt: Int Refined Positive = largerThanSix
 
   // Exercise 2
   //
@@ -110,9 +111,14 @@ object RefinedScala {
   //
   // sbt:scala-bootcamp> testOnly *testing2.RefinedScalaSpec
   //
-  case class Document(url: String, body: String)
+  type UrlType = String Refined Url
+  type XmlType = String Refined Xml
+
+  // Case class using refined types
+  case class Document(url: UrlType, body: XmlType)
 
 }
+
 class RefinedScalaSpec extends AnyFunSuite {
 
   test("wrong call does not compile") {
@@ -137,6 +143,7 @@ object ValueClasses {
 
   // example 0
   case class Account0(name: String, number: String)
+
   val invalidAccount1 = Account0("123456789", "John Doe")
   // using name parameters might help to avoid bugs, but it's just visual aid,
   // it won't stop incorrect code from compiling
@@ -144,23 +151,25 @@ object ValueClasses {
 
   // example 1
   case class Account(
-    name: AccountName,
-    number: AccountNumber,
-    balance: BigDecimal,
-  )
-  case class AccountName private (value: String) extends AnyVal
+                      name: AccountName,
+                      number: AccountNumber,
+                      balance: BigDecimal,
+                    )
+
+  case class AccountName private(value: String) extends AnyVal
 
   /** Account number is a string in IBAN format, complying with the ISO 13616
-    * standard. The IBAN consists of up to 34 alphanumeric characters, as
-    * follows:
-    *   - country code using 'ISO 3166-1 alpha-2' - 2 letters
-    *   - check digits – two digits
-    *   - Basic Bank Account Number (BBAN) – up to 30 alphanumeric characters
-    *     that are country-specific.
-    *
-    * Example: IE12 BOFI 9000 0112 3456 78
-    */
-  case class AccountNumber private (value: String) extends AnyVal
+   * standard. The IBAN consists of up to 34 alphanumeric characters, as
+   * follows:
+   *   - country code using 'ISO 3166-1 alpha-2' - 2 letters
+   *   - check digits – two digits
+   *   - Basic Bank Account Number (BBAN) – up to 30 alphanumeric characters
+   *     that are country-specific.
+   *
+   * Example: IE12 BOFI 9000 0112 3456 78
+   */
+  case class AccountNumber private(value: String) extends AnyVal
+
   object AccountNumber {
     // smart constructor which performs validation
     // for the sake of simplicity, we do not use it in examples
@@ -175,7 +184,7 @@ object ValueClasses {
       else None
   }
 
-  val accountName   = AccountName("John Doe")
+  val accountName = AccountName("John Doe")
   val accountNumber = AccountNumber("123456789")
 
   // compiler will not let you compile this code
@@ -189,25 +198,27 @@ object ValueClasses {
   // We can copy paste scaladoc to every usage of these values, but it's not very readable.
 
   /** @param stake
-    *   \- amount of money player bet
-    * @param winRate
-    *   \- how much player will win per 1 coin staked
-    * @return
-    *   \- amount of money which should be paid out to the player
-    */
+   * \- amount of money player bet
+   * @param winRate
+   * \- how much player will win per 1 coin staked
+   * @return
+   * \- amount of money which should be paid out to the player
+   */
   def calculateWin(
-    stake: BigDecimal,
-    winRate: BigDecimal,
-  ): BigDecimal = stake * winRate
+                    stake: BigDecimal,
+                    winRate: BigDecimal,
+                  ): BigDecimal = stake * winRate
 
   // We can add smart constructor if needed.
   // There is single space for scaladoc, so it's easier to maintain documentation.
 
   /** Amount of money player bet. It's used for calculating win amount. */
-  case class Stake(value: BigDecimal)   extends AnyVal
+  case class Stake(value: BigDecimal) extends AnyVal
+
   case class WinRate(value: BigDecimal) extends AnyVal
 
   case class WinAmount(value: BigDecimal) extends AnyVal
+
   object WinAmount {
     def apply(stake: Stake, winRate: WinRate): WinAmount =
       WinAmount(stake.value * winRate.value)
@@ -216,9 +227,9 @@ object ValueClasses {
   // Now we can even omit scaladoc completely. If necessary, one can take a look at `Stake`, `WinRate` and `WinAmount` classes.
   // Isn't this more readable?
   def calculateWin2(
-    stake: Stake,
-    winRate: WinRate,
-  ): WinAmount = WinAmount(stake, winRate)
+                     stake: Stake,
+                     winRate: WinRate,
+                   ): WinAmount = WinAmount(stake, winRate)
 
   // example 4
 
@@ -231,14 +242,24 @@ object ValueClasses {
 
   // sending money is really important, so we want to make sure we don't make any mistakes
   // what if we, by accident, pass the wrong parameters to the `transferMoney` function?
-  val from: Account = ???
-  val to: Account   = ???
+  case class FromAccount(account: Account) extends AnyVal
+
+  case class ToAccount(account: Account) extends AnyVal
+
+  def transferMoneySafe(from: FromAccount, to: ToAccount, amount: BigDecimal): Unit = {
+    // some logic
+    // val deducted = from subtract...
+    // val added = to add ...
+  }
+
+  val from: FromAccount = ???
+  val to: ToAccount = ???
 
   // Exercise
 
   // what is wrong with following code?
   // how can we make sure that we don't make such mistakes?
-  transferMoney(to, from, 100)
+  transferMoneySafe(from, to, 100)
 
 }
 
@@ -248,17 +269,32 @@ object ImpossibleState {
   // What is wrong with following class?
   // Can you find a potential risk?
   final case class Task0(
-    id: String,
-    isFinished: Boolean,
-    finishedAt: Option[Long],
-    progress: Double,
-    isCancelled: Boolean,
-  )
+                          id: String,
+                          isFinished: Boolean,
+                          finishedAt: Option[Long],
+                          progress: Double,
+                          isCancelled: Boolean,
+                        )
 
   // Exercise 3
   // Use Algebraic Data Types to model Task domain.
-  sealed trait Task
+  sealed trait Task[ID] {
+    def id: ID
+  }
 
+  object Task {
+    final case class InProgress[ID](
+                                     progress: Double
+                                   )(val id: ID) extends Task[ID]
+
+    final case class Finished[ID](
+                                   finishedAt: Long
+                                 )(val id: ID) extends Task[ID]
+
+    final case class Cancelled[ID]()(
+      val id: ID
+    ) extends Task[ID]
+  }
   // Does one needs to write tests for such code?
   // What kind of tests are not needed anymore after using ADTs?
 }
@@ -282,24 +318,29 @@ object Parametricity {
   // https://medium.com/bigpanda-engineering/understanding-parametricity-in-scala-520f9f10679a
 
   // Implement the following function in all possible ways:
-  def f1_way1[A](a: A): A = ???
+  def f1_way1[A](a: A): A = a
+
   def f1_way2[A](a: A): A = ???
 
   // Let's do another one...
-  def f2_way1[A](a: A, b: A): A = ???
-  def f2_way2[A](a: A, b: A): A = ???
+  def f2_way1[A](a: A, b: A): A = a
+
+  def f2_way2[A](a: A, b: A): A = b
+
   def f2_way3[A](a: A, b: A): A = ???
 
   // Can this function use `a` somehow in implementation?
   def f3[A](a: A, b: Int): Int = ???
 
   // How about this one?
-  def f4[A](a: A, b: String): String = ???
+  def f4[A](a: A, b: String): String = a.toString + b
 
   // Implement the following function in several ways:
   // What is common in all of these implementations?
   def f5_way1[A](as: List[A]): List[A] = ???
+
   def f5_way2[A](as: List[A]): List[A] = ???
+
   def f5_way3[A](as: List[A]): List[A] = ???
 
   // How many ways we can implement this function with?
@@ -338,7 +379,10 @@ object Parametricity {
   // we need this boilerplate for this to work
   // often generated by libraries / macros:
 
-  trait Reversable[T] { def reverse(a: T): T }
+  trait Reversable[T] {
+    def reverse(a: T): T
+  }
+
   implicit val listReversable: Reversable[List[Int]] = _.reverse
 
   // still, even if `Reversable` is implemented by library (JSON libraries love doing it)
@@ -373,6 +417,7 @@ object Parametricity {
   // do we need any tests for reversed3 - reversed7 at all?
 
 }
+
 class ParametricitySpec extends AnyFunSuite {
 
   test("reversed1 works correctly") {
@@ -387,6 +432,7 @@ class ParametricitySpec extends AnyFunSuite {
 
   test("reversed3 works correctly") {
     def reverse(list: List[Int]) = list.reverse
+
     assert(Parametricity.reversed3(List.empty[Int], reverse) == Nil)
     assert(
       Parametricity.reversed3(List(1, 2, 3, 4, 5), reverse) == List(5, 4, 3, 2, 1)
@@ -414,6 +460,7 @@ class ParametricitySpec extends AnyFunSuite {
   }
 
 }
+
 object EffectTracking {
 
   // Exercise 6
@@ -443,7 +490,7 @@ object EffectTracking {
     def call(arg: String): Unit = {
       // ... many lines of code
       val currentTime = System.currentTimeMillis()
-      val msg         = s"$currentTime $arg"
+      val msg = s"$currentTime $arg"
       // ... many lines of code
 
       print(msg)
@@ -456,6 +503,7 @@ object EffectTracking {
   // single-responsibility principle - it's easier to provide test instances for such smaller, well defined traits
   trait PrintWithClock {
     def print(text: String): Unit
+
     def currentTimeMillis(): Long
   }
 
@@ -474,7 +522,7 @@ object EffectTracking {
   class Service(printing: Printing, clock: Clock) {
     def call(arg: String): Unit = {
       val currentTime = clock.currentTimeMillis()
-      val msg         = s"$currentTime $arg"
+      val msg = s"$currentTime $arg"
 
       printing.print(msg)
     }
@@ -488,6 +536,7 @@ object EffectTracking {
   }
 
 }
+
 object EffectTrackingSpec extends AnyFunSuite {
 
   // Implement the tests validating `Service` functionality.
