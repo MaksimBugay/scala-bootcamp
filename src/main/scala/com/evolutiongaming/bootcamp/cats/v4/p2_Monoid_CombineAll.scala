@@ -1,5 +1,7 @@
 package com.evolutiongaming.bootcamp.cats.v4
 
+import cats.implicits.{catsSyntaxSemigroup, toFoldableOps}
+
 object p2_Monoid_CombineAll {
 
   import cats.Monoid
@@ -34,8 +36,17 @@ object p2_Monoid_CombineAll {
   type AggregatedResult = Map[ProblemKind, (Int, Map[Client, Int])]
 
   def aggregateCombineAll(
-    log: Iterator[(Instant, Seq[Problem])]
-  ): AggregatedResult = ??? // cats.Monoid.combineAll { ??? }
+                           log: Iterator[(Instant, Seq[Problem])]
+                         ): AggregatedResult = {
+    // Convert the log into individual AggregatedResults and combine them
+    log.map { case (_, problems) =>
+      // Group problems by kind
+      problems.groupBy(_.kind).map { case (kind, problemsOfKind) =>
+        val clientCounts = problemsOfKind.groupBy(_.client).view.mapValues(_.size).toMap
+        kind -> (problemsOfKind.size, clientCounts)
+      }
+    }.toList.combineAll
+  }
 
   // Without monoids, aggregating into that shape is already pretty cumbersome
   def aggregateManually(
