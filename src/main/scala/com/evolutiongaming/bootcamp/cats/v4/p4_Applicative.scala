@@ -3,9 +3,10 @@ package com.evolutiongaming.bootcamp.cats.v4
 object p4_Applicative {
 
   /** Applicative defines a `pure` method that allows us to construct an instance of Applicative
-    * In cats, Applicative is an ancestor of Apply type class, which defines an `ap` method.
-    * The essence of the `ap` method is to apply a function f: A => B in to a value of type A in given context F[_]
-    */
+   * In cats, Applicative is an ancestor of Apply type class, which defines an `ap` method.
+   * The essence of the `ap` method is to apply a function f: A => B in to a value of type A in given context F[_]
+   */
+
   import cats.Applicative
 
   trait EvoApplicative[F[_]] extends Applicative[F] {
@@ -28,24 +29,37 @@ object p4_Applicative {
   }
 
   /** Ex 4.0 implement an Applicative for Option
-    */
+   */
   val optionApplicative: Applicative[Option] = new Applicative[Option] {
-    def pure[A](x: A): Option[A] = ???
+    override def pure[A](x: A): Option[A] = Some(x)
 
-    def ap[A, B](ff: Option[A => B])(fa: Option[A]): Option[B] = ???
+    /*override def ap[A, B](ff: Option[A => B])(fa: Option[A]): Option[B] =
+      (ff, fa) match {
+        case (Some(f), Some(a)) => Some(f(a))
+        case _ => None
+      }*/
+    override def ap[A, B](ff: Option[A => B])(fa: Option[A]): Option[B] =
+      ff match {
+        case Some(f) => fa.map(f)
+        case _ => None
+      }
   }
 
   /** Ex 4.1 implement an Applicative for Map
-    */
+   */
   type MapF[A] = Map[A, A]
-
+  //Impossible in general but doable for map where every key equals to value!!!
   val mapApplicative: Applicative[MapF] = new Applicative[MapF] {
-    def pure[A](x: A): MapF[A] = ???
+    def pure[A](x: A): MapF[A] = Map(x -> x)
 
-    def ap[A, B](ff: MapF[A => B])(fa: MapF[A]): MapF[B] = ???
+    def ap[A, B](ff: MapF[A => B])(fa: MapF[A]): MapF[B] =
+      ff.flatMap { case (f, _) =>
+        fa.map { case (a, _) => f(a) -> f(a) }
+      }
   }
 
   // Common operations
+
   import cats.effect.IO
   import cats.syntax.applicative._
   import cats.syntax.apply._

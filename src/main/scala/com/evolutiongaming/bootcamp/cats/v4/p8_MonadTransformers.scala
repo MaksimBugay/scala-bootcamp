@@ -82,7 +82,7 @@ object p8_MonadTransformers {
   trait UserRepository[F[_]] {
     def fetchUser(): F[Option[User]]
 
-    def fetchUserT(): OptionT[F, User]
+    //def fetchUserT(): OptionT[F, User]
   }
 
   // EitherT

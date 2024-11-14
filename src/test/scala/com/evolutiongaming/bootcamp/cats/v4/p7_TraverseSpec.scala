@@ -9,7 +9,14 @@ class p7_TraverseSpec extends AnyFlatSpec with Matchers {
 
   /** Ex 7.0 implement traverse function for Option. At least 1 None means result None.
     */
-  def optionTraverse[A](input: List[Option[A]]): Option[List[A]] = ??? /* your code here */
+  def optionTraverse[A](input: List[Option[A]]): Option[List[A]] = {
+    input.foldRight(Option(List.empty[A])) { (current, acc) =>
+      for {
+        value <- current
+        list <- acc
+      } yield value :: list
+    }
+  }
 
   "Traverse for List of Option of A" should "be implemented correctly" in {
     optionTraverse(List.empty) shouldBe List.empty.some

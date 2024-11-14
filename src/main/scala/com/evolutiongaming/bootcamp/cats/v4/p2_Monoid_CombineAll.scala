@@ -37,6 +37,11 @@ object p2_Monoid_CombineAll {
 
   def aggregateCombineAll(
                            log: Iterator[(Instant, Seq[Problem])]
+                         ): AggregatedResult = cats.Monoid.combineAll{
+    log.flatMap(_._2).map(value => Map(value.kind -> (1 -> Map(value.client -> 1))))
+  }
+  /*def aggregateCombineAll(
+                           log: Iterator[(Instant, Seq[Problem])]
                          ): AggregatedResult = {
     // Convert the log into individual AggregatedResults and combine them
     log.map { case (_, problems) =>
@@ -46,7 +51,7 @@ object p2_Monoid_CombineAll {
         kind -> (problemsOfKind.size, clientCounts)
       }
     }.toList.combineAll
-  }
+  }*/
 
   // Without monoids, aggregating into that shape is already pretty cumbersome
   def aggregateManually(

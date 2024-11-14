@@ -10,6 +10,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.monadError._
 
+import scala.io.StdIn
 import scala.util.control.NoStackTrace
 
 /** ApplicativeError/MonadError for raising and handling of errors to Applicative/Monad */
@@ -44,10 +45,13 @@ leftError.onError { case _: String =>
 // E.g. this is used in Circe, where decoders return Either[DecodingFailure, T]
 // DecodingFailure extends io.circe.Error, which is a sealed class extending Exception
 sealed abstract class InvalidTime extends Exception with NoStackTrace
-final case class InvalidHour()    extends InvalidTime
-final case class InvalidMinute()  extends InvalidTime
+
+final case class InvalidHour() extends InvalidTime
+
+final case class InvalidMinute() extends InvalidTime
 
 final case class Time(hour: Int, minute: Int)
+
 object Time {
   def of[F[_]](hour: Int, minute: Int)(implicit F: ApplicativeError[F, NonEmptyList[InvalidTime]]): F[Time] = {
     def checkRange(range: Range, value: Int, error: => InvalidTime): F[Int] = {
@@ -55,7 +59,7 @@ object Time {
       else NonEmptyList.one(error).raiseError
     }
 
-    val validHour   = checkRange(0 to 23, hour, InvalidHour())
+    val validHour = checkRange(0 to 23, hour, InvalidHour())
     val validMinute = checkRange(0 to 59, minute, InvalidMinute())
 
     (validHour, validMinute).mapN(Time.apply)

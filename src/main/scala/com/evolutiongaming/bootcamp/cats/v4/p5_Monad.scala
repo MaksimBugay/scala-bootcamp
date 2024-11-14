@@ -30,7 +30,7 @@ object p5_Monad {
 
     /** Ex 5.0 implement map in terms of pure and flatMap.
       */
-    def map[A, B](fa: F[A])(f: A => B): F[B] = ??? /* your code here */
+    def map[A, B](fa: F[A])(f: A => B): F[B] = flatMap(fa)(a => pure(f(a))) /* your code here */
 
     // cats only special method for stack-safety
     // def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = ???
@@ -73,17 +73,17 @@ object p5_Monad {
   /** Ex 5.1 implement EvoMonad for List
     */
   val listMonad: EvoMonad[List] = new EvoMonad[List] {
-    override def pure[A](a: A): List[A] = ???
+    override def pure[A](a: A): List[A] = List(a)
 
-    override def flatMap[A, B](fa: List[A])(f: A => List[B]): List[B] = ???
+    override def flatMap[A, B](fa: List[A])(f: A => List[B]): List[B] = fa.flatMap(f)
   }
 
   /** Ex 5.2 implement EvoMonad for Option
     */
   val optionMonad: EvoMonad[Option] = new EvoMonad[Option] {
-    override def pure[A](a: A): Option[A] = ???
+    override def pure[A](a: A): Option[A] = Some(a)
 
-    override def flatMap[A, B](fa: Option[A])(f: A => Option[B]): Option[B] = ???
+    override def flatMap[A, B](fa: Option[A])(f: A => Option[B]): Option[B] = fa.flatMap(f)
   }
 
   /** Cats provides number of default instances

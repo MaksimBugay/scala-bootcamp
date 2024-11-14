@@ -24,7 +24,21 @@ class p8_MonadTransformersSpec extends AsyncWordSpec with AsyncIOSpec with Match
   }
 
   class GiftFetcher(repository: Repository) {
-    def giftT(): EitherT[IO, String, Gift] = EitherT.fromOption(None, "Not implemented") // TODO implement
+
+    def giftT(): EitherT[IO, String, Gift] = {
+      for {
+        // Fetch the user, returning an error if the user is not found
+        user <- EitherT.fromOptionF(repository.fetchUser(), "User not found")
+
+        // Fetch the gift card, returning an error if the gift card is not found
+        // We need to map the IO[Either[String, GiftCard]] into EitherT[IO, String, GiftCard]
+        giftCard <- EitherT(repository.fetchGiftCard(user))
+
+        // Pick the gift based on the gift card
+        gift <- EitherT.liftF(repository.pickGift(giftCard))
+
+      } yield gift
+    }
   }
 
   "GiftFetcher" should {
