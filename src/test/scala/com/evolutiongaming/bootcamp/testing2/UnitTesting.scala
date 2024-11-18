@@ -3,7 +3,12 @@ package com.evolutiongaming.bootcamp.testing2
 import cats.Monad
 import cats.data.State
 import cats.syntax.all._
+import com.evolutiongaming.bootcamp.testing2.Exercise10.Player10
 import com.evolutiongaming.bootcamp.testing2.hal9000.HAL9000
+import munit.Assertions.clue
+import org.mockito.ArgumentMatchers.any
+import org.mockito.MockitoSugar
+
 import java.util.concurrent.atomic.AtomicReference
 import org.scalatest.EitherValues
 import org.scalatest.freespec.AnyFreeSpec
@@ -11,6 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
 import scala.annotation.nowarn
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -198,6 +204,7 @@ class Exercise2Spec extends AnyFreeSpec {
   }
 
 }
+
 // *Exercise 3*
 //
 // Another popular way to write tests is `WordSpec` as it pushes a very strict
@@ -211,8 +218,41 @@ class Exercise2Spec extends AnyFreeSpec {
 //
 // sbt:scala-bootcamp> testOnly *testing2.Exercise3Spec
 //
-class Exercise3Spec extends AnyWordSpec {}
+class Exercise3Spec extends AnyWordSpec {
+  "A Calculator" should {
 
+    "enter the number correctly" in {
+      val calculator = Calculator()
+      assert(calculator.enter(1) == Right(Calculator(1, 0, None)))
+      assert(calculator.enter(7) == Right(Calculator(7, 0, None)))
+      assert(calculator.enter(12) == Left("digit out of range"))
+    }
+
+    "do nothing" when {
+      "you just repeat pressing `=`" in {
+        val calculator = Calculator()
+        assert(calculator.calculate.calculate.calculate.calculate == calculator)
+      }
+    }
+  }
+}
+
+import org.scalatest.flatspec.AnyFlatSpec
+
+class CalculatorSpec extends AnyFlatSpec {
+
+  "A Calculator" should "enter the number correctly" in {
+    val calculator = Calculator()
+    assert(calculator.enter(1) == Right(Calculator(1, 0, None)))
+    assert(calculator.enter(7) == Right(Calculator(7, 0, None)))
+    assert(calculator.enter(12) == Left("digit out of range"))
+  }
+
+  it should "do nothing when you just repeat pressing `=`" in {
+    val calculator = Calculator()
+    assert(calculator.calculate.calculate.calculate.calculate == calculator)
+  }
+}
 // *Note*
 //
 // Which style do you like more? Are you ready to argue with your colleagues
@@ -236,6 +276,25 @@ class Exercise3Spec extends AnyWordSpec {}
 // Now break one of the tests, i.e. change `calculator.enter(1)` to
 // `calculator.enter(2)`. Observe the output. Do you like the input?
 // How does it compare to what you seen in `Exercise1`?
+
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class Calculator1Spec extends AnyFlatSpec with Matchers {
+
+  "A Calculator" should "enter the number correctly" in {
+    val calculator = Calculator()
+    calculator.enter(1) should be(Right(Calculator(1, 0, None)))
+    calculator.enter(7) should be(Right(Calculator(7, 0, None)))
+    calculator.enter(12) should be(Left("digit out of range"))
+  }
+
+  it should "do nothing when you just repeat pressing `=`" in {
+    val calculator = Calculator()
+    calculator.calculate.calculate.calculate.calculate should be(calculator)
+  }
+}
+
 class Exercise4Spec extends AnyFreeSpec with Matchers {
 
   "calculator" - {
@@ -274,6 +333,21 @@ class Exercise4Spec extends AnyFreeSpec with Matchers {
 // Now break one of the tests, i.e. change `calculator.enter(1)` to
 // `calculator.enter(900)`. Observe the output. Do you like the input?
 // How does it compare to what you seen in Exercise 2?
+class Calculator3Spec extends AnyFlatSpec with Matchers with EitherValues {
+
+  "A Calculator" should "enter the number correctly" in {
+    val calculator = Calculator()
+    calculator.enter(1).value should be(Calculator(1, 0, None))
+    calculator.enter(7).value should be(Calculator(7, 0, None))
+    calculator.enter(12).left.value should be("digit out of range")
+  }
+
+  it should "do nothing when you just repeat pressing `=`" in {
+    val calculator = Calculator()
+    calculator.calculate.calculate.calculate.calculate should be(calculator)
+  }
+}
+
 @nowarn
 class Exercise5Spec extends AnyFreeSpec with EitherValues {
 
@@ -333,15 +407,22 @@ class Exercise5Spec extends AnyFreeSpec with EitherValues {
 //
 // sbt:scala-bootcamp> testOnly *testing2.Exercise6Spec
 //
-class Exercise6Spec extends AnyFunSuite {
 
-  test("name of the test 1") {
-    // here goes your test 1
-  }
-  test("name of the test 2") {
-    // here goes your test 2
+abstract class BaseTestClass extends AnyFunSuite with Matchers with EitherValues
+
+class Exercise6Spec extends BaseTestClass {
+
+  test("A Calculator should enter the number correctly") {
+    val calculator = Calculator()
+    calculator.enter(1).value should be(Calculator(1, 0, None))
+    calculator.enter(7).value should be(Calculator(7, 0, None))
+    calculator.enter(12).left.value should be("digit out of range")
   }
 
+  test("A Calculator should do nothing when you just repeat pressing `=`") {
+    val calculator = Calculator()
+    calculator.calculate.calculate.calculate.calculate should be(calculator)
+  }
 }
 
 // *Exercise 7*
@@ -356,12 +437,13 @@ class Exercise6Spec extends AnyFunSuite {
 //
 // sbt:scala-bootcamp> testOnly *testing2.Exercise7Spec
 //
-class Exercise7Spec extends AnyFunSuite {
+package hal9000 {
+  class Exercise7Spec extends AnyFunSuite {
 
-  test("HAL 9000 multiplies numbers correctly") {
-    // assert(HAL9000.twice(7) == 14)
+    test("HAL 9000 multiplies numbers correctly") {
+      assert(HAL9000.twice(7) == 14)
+    }
   }
-
 }
 
 // *Exercise 8*
@@ -378,7 +460,9 @@ class Exercise7Spec extends AnyFunSuite {
 //
 class Exercise8Spec extends AnyFunSuite {
 
-  test("HAL 9000 behaves as expected when asked to open the door") {}
+  test("HAL 9000 behaves as expected when asked to open the door") {
+    assertThrows[RuntimeException](HAL9000.letAustronautIn())
+  }
 
 }
 
@@ -398,8 +482,8 @@ class Exercise8Spec extends AnyFunSuite {
 //
 class Exercise9Spec extends AnyFunSuite {
 
-  test("HAL9000") {
-    assert(HAL9000.register1 == HAL9000.register2)
+  test("HAL9000 registers should match") {
+    assert(HAL9000.register1 == HAL9000.register2, "HAL9000 registers should be the same")
   }
 
 }
@@ -420,13 +504,18 @@ class Exercise9Spec extends AnyFunSuite {
 //
 object Exercise10 {
 
-  case class Player(id: String, name: String, email: String, score: Int)
+  case class Player10(id: String, name: String, email: String, score: Int)
+
   trait PlayerRepository {
-    def byId(id: String): Option[Player]
-    def all: List[Player]
-    def update(player: Player): Unit
+    def byId(id: String): Option[Player10]
+
+    def all: List[Player10]
+
+    def update(player: Player10): Unit
+
     def delete(id: String): Unit
   }
+
   trait Logging {
     def info(message: String): Unit
   }
@@ -434,29 +523,40 @@ object Exercise10 {
   trait PlayerService {
 
     /** Deletes all the players with score lower than minimum.
-      *
-      * @param miniumumScore the minimum score the player stays with.
-      */
+     *
+     * @param miniumumScore the minimum score the Player stays with.
+     */
     def deleteWorst(minimumScore: Int): Unit
 
     /** Adds bonus points to score to all existing players
-      *
-      * @param bonus the bonus points to add to the players.
-      */
+     *
+     * @param bonus the bonus points to add to the players.
+     */
     def celebrate(bonus: Int): Unit
 
   }
+
   object PlayerService {
 
     /** Creates a new service working with existing repository */
     def apply(repository: PlayerRepository, logging: Logging): PlayerService = new PlayerService {
 
       // NOTE: We do not have a returned type annotation and documentation here, why?
-      def deleteWorst(minimumScore: Int) = ???
-      def celebrate(bonus: Int)          = ???
+      def deleteWorst(minimumScore: Int): Unit =
+        repository.all
+          .filter(_.score < minimumScore)
+          .foreach(p => {
+            logging.info(s"Deleting player ${p.name}")
+            repository.delete(p.id)
+          })
 
+      def celebrate(bonus: Int): Unit =
+        repository.all.foreach { player =>
+          val updatedPlayer = player.copy(score = player.score + bonus)
+          logging.info(s"Updating player ${player.name} with bonus ${bonus}")
+          repository.update(updatedPlayer)
+        }
     }
-
   }
 
 }
@@ -489,38 +589,127 @@ object Exercise10 {
 //
 // Bonus question: do we need to test logging?
 //
-class Exercise10Spec extends AnyFunSuite {
+
+class Exercise10MocksSpec extends AnyFunSuite with MockitoSugar {
 
   import Exercise10._
 
   test("PlayerService.deleteWorst works correctly") {
 
     // construct fixture
-    val repository = ???
-    val logging    = ???
-    val service    = PlayerService(repository, logging)
+    val repository = mock[PlayerRepository]
+    val logging = mock[Logging]
+    val service = PlayerService(repository, logging)
 
+    when(repository.all).thenReturn(
+      List(
+        Player10("1", "Ivan", "test@mail.com", 3)
+      )
+    )
     // perform the test
-    service.deleteWorst(???)
+    service.deleteWorst(5)
 
-    // validate the results
-    assert(???)
+    verify(repository).delete("1")
+    verify(repository, times(1)).delete("1")
+    verify(logging).info("Deleting player Ivan")
+    verify(repository, never).delete("2")
   }
 
   test("PlayerService.celebrate works correctly") {
 
     // construct fixture
-    val repository = ???
-    val logging    = ???
-    val service    = PlayerService(repository, logging)
+    val repository = mock[PlayerRepository]
+    val logging = mock[Logging]
+    val service = PlayerService(repository, logging)
 
+    when(repository.all).thenReturn(
+      List(
+        Player10("1", "Ivan", "test0@mail.com", 3),
+        Player10("2", "Vovan", "test1@mail.com", 5),
+        Player10("3", "Oleg", "test2@mail.com", 7)
+      )
+    )
     // perform the test
-    service.celebrate(???)
+    service.celebrate(5)
 
-    // validate the results
-    assert(???)
+    verify(repository, times(1)).update(Player10("2", "Vovan", "test1@mail.com", 10))
+    verify(repository, times(1)).update(Player10("3", "Oleg", "test2@mail.com", 12))
+    verify(repository, times(3)).update(any[Player10])
   }
 
+}
+
+
+class Exercise10aSpec extends munit.FunSuite {
+
+  import Exercise10._
+
+  class TestPlayerRepository(initialPlayers: List[Player10]) extends PlayerRepository {
+    private var players: List[Player10] = initialPlayers
+
+    override def byId(id: String): Option[Player10] = players.find(_.id == id)
+
+    override def all: List[Player10] = players
+
+    override def update(player: Player10): Unit = players = player :: players.filter(_.id != player.id)
+
+    override def delete(id: String): Unit = players = players.filter(_.id != id)
+  }
+
+  class TestLogging extends Logging {
+    var messages: List[String] = Nil
+
+    override def info(message: String): Unit = messages = message :: messages
+  }
+
+  class Fixture {
+    val repository = new TestPlayerRepository(
+      List(
+        Player10("1", "Ivan", "test0@mail.com", 3),
+        Player10("2", "Vovan", "test1@mail.com", 5),
+        Player10("3", "Oleg", "test2@mail.com", 7)
+      )
+    )
+    val logging = new TestLogging
+    val service: PlayerService = PlayerService(repository, logging)
+  }
+
+  test("PlayerService.deleteWorst works correctly") {
+
+    // construct fixture
+    val fixture = new Fixture
+    import fixture._
+
+    // perform the test
+    service.deleteWorst(5)
+
+    // validate the results
+    assertEquals(repository.all.size, 2)
+  }
+
+  test("PlayerService.celebrate works correctly") {
+
+    // construct fixture
+    val repository = new TestPlayerRepository(
+      List(
+        Player10("1", "Ivan", "test0@mail.com", 3),
+        Player10("2", "Vovan", "test1@mail.com", 5),
+        Player10("3", "Oleg", "test2@mail.com", 7)
+      )
+    )
+    val logging = new TestLogging
+    val service = PlayerService(repository, logging)
+
+    // perform the test
+    service.celebrate(3)
+
+    // validate the results
+    assertEquals(repository.all.sortBy(_.id), List(
+      Player10("1", "Ivan", "test0@mail.com", 6),
+      Player10("2", "Vovan", "test1@mail.com", 8),
+      Player10("3", "Oleg", "test2@mail.com", 10)
+    ))
+  }
 }
 
 // *Exercise 11*
@@ -552,20 +741,25 @@ object Exercise12 {
   // Combining futures only work if you have implicit execution context in scope.
   // It is not required to combine `IO` objects, and that is one of the reasons
   // to use them instead.
+
   import scala.concurrent.ExecutionContext.Implicits.global
 
   // 1. The type wrapped by `Future` could be changed by using `map`:
-  def dogs: Future[Int]        = ???
+  def dogs: Future[Int] = ???
+
   def message1: Future[String] = dogs map { dogs =>
     s"We have $dogs of dogs"
   }
+
   // 2. Two `Future` classes could be combined by `flatMap`:
-  def cats: Future[Int]        = ???
+  def cats: Future[Int] = ???
+
   def message2: Future[String] = dogs flatMap { dogs =>
     cats map { cats =>
       s"We have $dogs of dogs and $cats of cats"
     }
   }
+
   // 3. We can use `for...yield` notation to avoid nesting:
   def message3: Future[String] = for {
     dogs <- dogs
@@ -577,14 +771,27 @@ object Exercise12 {
   //
   // The simplest is just to wrap your code into `Future { ... }`.
   // It will start executing in a different thread as soon as the code is called.
-  def future1: Future[Int]                = Future { 7 }
+  def future1: Future[Int] = Future {
+    7
+  }
+
   //
   // Another way is to create it using a `Promise`.
   // It will not start executing anything and will complete when the promise is
   // fulfilled.
   //
-  val promise: Promise[Int]               = Promise()
-  def future2: Future[Int]                = promise.future
+  val promise: Promise[Int] = Promise()
+
+  import scala.util.{Success, Failure}
+
+  def future2: Future[Int] = {
+    val future = promise.future
+    future.onComplete {
+      case Success(_) => println("Ok")
+      case Failure(_) => println("Error")
+    }
+    future // Return the future
+  }
   //
   // Now let complete our Future:
   promise.success(7)
@@ -599,15 +806,20 @@ object Exercise12 {
   // Set the value to another one:
   storage.set(List(5, 6, 7))
   // Get the current value from the storage:
-  val list                                = storage.get()
+  val list = storage.get()
 
   case class Player(id: String, name: String, email: String, score: Int)
+
   trait PlayerRepository {
     def byId(id: String): Future[Option[Player]]
+
     def all: Future[List[Player]]
+
     def update(player: Player): Future[Unit]
+
     def delete(id: String): Future[Unit]
   }
+
   trait Logging {
     def info(message: String): Future[Unit]
   }
@@ -615,31 +827,34 @@ object Exercise12 {
   trait PlayerService {
 
     /** Deletes all the players with score lower than minimum.
-      *
-      * @param miniumumScore the minimum score the player stays with.
-      */
+     *
+     * @param miniumumScore the minimum score the player stays with.
+     */
     def deleteWorst(minimumScore: Int): Future[Unit]
 
     /** Adds bonus points to score to all existing players
-      *
-      * @param bonus the bonus points to add to the players.
-      */
+     *
+     * @param bonus the bonus points to add to the players.
+     */
     def celebrate(bonus: Int): Future[Unit]
 
   }
+
   object PlayerService {
 
     /** Creates a new service working with existing repository */
     def apply(repository: PlayerRepository, logging: Logging): PlayerService = new PlayerService {
 
       def deleteWorst(minimumScore: Int) = ???
-      def celebrate(bonus: Int)          = ???
+
+      def celebrate(bonus: Int) = ???
 
     }
 
   }
 
 }
+
 // ScalaTest supports executing asynchronous code out of the box: just replace
 // `AnyFunSuite` with `AsyncFunSuite` and make sure it returns `Future[Assertion]`:
 // https://www.scalatest.org/user_guide/async_testing
@@ -654,8 +869,8 @@ class Exercise12Spec extends AsyncFunSuite {
 
     // construct fixture
     val repository = ???
-    val logging    = ???
-    val service    = PlayerService(repository, logging)
+    val logging = ???
+    val service = PlayerService(repository, logging)
 
     // perform the test
     service.deleteWorst(???) map { _ =>
@@ -668,8 +883,8 @@ class Exercise12Spec extends AsyncFunSuite {
 
     // construct fixture
     val repository = ???
-    val logging    = ???
-    val service    = PlayerService(repository, logging)
+    val logging = ???
+    val service = PlayerService(repository, logging)
 
     // perform the test
     service.celebrate(???) map { _ =>
@@ -715,8 +930,9 @@ object Exercise14 {
   // Remember Scala allows you to do pass type parameters to function in
   // classes like this?
   def function1[T](list: List[T]): Option[T] = list.headOption
+
   // And then call the function like this?
-  val result: Option[Int]                    = function1(List(1, 2, 3))
+  val result: Option[Int] = function1(List(1, 2, 3))
 
   // We will use the same trick now and pass `Option` instead of `Future`
   // to the code.
@@ -725,12 +941,17 @@ object Exercise14 {
   // a higher kinded type (see previous lecture).
   //
   case class Player(id: String, name: String, email: String, score: Int)
+
   trait PlayerRepository[F[_]] {
     def byId(id: String): F[Option[Player]]
+
     def all: F[List[Player]]
+
     def update(player: Player): F[Unit]
+
     def delete(id: String): F[Unit]
   }
+
   trait Logging[F[_]] {
     def info(message: String): F[Unit]
   }
@@ -738,18 +959,19 @@ object Exercise14 {
   trait PlayerService[F[_]] {
 
     /** Deletes all the players with score lower than minimum.
-      *
-      * @param miniumumScore the minimum score the player stays with.
-      */
+     *
+     * @param miniumumScore the minimum score the player stays with.
+     */
     def deleteWorst(minimumScore: Int): F[Unit]
 
     /** Adds bonus points to score to all existing players
-      *
-      * @param bonus the bonus points to add to the players.
-      */
+     *
+     * @param bonus the bonus points to add to the players.
+     */
     def celebrate(bonus: Int): F[Unit]
 
   }
+
   object PlayerService {
 
     // Note: we are using special `Monad` type from `cats` library to avoid some boilerplate.
@@ -758,17 +980,19 @@ object Exercise14 {
     // You will learn more about `cats` library in next lecture.
 
     /** Creates a new service working with existing repository */
-    def apply[F[_]: Monad](repository: PlayerRepository[F], logging: Logging[F]): PlayerService[F] =
+    def apply[F[_] : Monad](repository: PlayerRepository[F], logging: Logging[F]): PlayerService[F] =
       new PlayerService[F] {
 
         def deleteWorst(minimumScore: Int) = ???
-        def celebrate(bonus: Int)          = ???
+
+        def celebrate(bonus: Int) = ???
 
       }
 
   }
 
 }
+
 // Now let's first copy-paste the code form Exercise 12 and replace all
 // `Future` calls by `F` to prove it actually works.
 //
@@ -782,8 +1006,8 @@ class Exercise14FutureSpec extends AsyncFunSuite {
 
     // construct fixture
     val repository = ???
-    val logging    = ???
-    val service    = PlayerService[Future](repository, logging)
+    val logging = ???
+    val service = PlayerService[Future](repository, logging)
 
     // perform the test
     service.deleteWorst(???) map { _ =>
@@ -796,8 +1020,8 @@ class Exercise14FutureSpec extends AsyncFunSuite {
 
     // construct fixture
     val repository = ???
-    val logging    = ???
-    val service    = PlayerService[Future](repository, logging)
+    val logging = ???
+    val service = PlayerService[Future](repository, logging)
 
     // perform the test
     service.celebrate(???) map { _ =>
@@ -825,8 +1049,8 @@ class Exercise14OptionSpec extends AnyFunSuite {
 
     // construct fixture
     val repository = ???
-    val logging    = ???
-    val service    = PlayerService[Option](repository, logging)
+    val logging = ???
+    val service = PlayerService[Option](repository, logging)
 
     // perform the test
     service.deleteWorst(???) map { _ =>
@@ -839,8 +1063,8 @@ class Exercise14OptionSpec extends AnyFunSuite {
 
     // construct fixture
     val repository = ???
-    val logging    = ???
-    val service    = PlayerService[Option](repository, logging)
+    val logging = ???
+    val service = PlayerService[Option](repository, logging)
 
     // perform the test
     service.celebrate(???) map { _ =>
@@ -898,25 +1122,29 @@ class Exercise14OptionSpec extends AnyFunSuite {
 class Exercise14StateSpec extends AnyFunSuite {
 
   import Exercise14._
+
   type F[T] = State[List[Player], T]
 
   test("PlayerService.deleteWorst works correctly") {
 
     // construct fixture
     val repository = new PlayerRepository[F] {
-      def byId(id: String)       = State.pure(None)
-      def all                    = State.get
+      def byId(id: String) = State.pure(None)
+
+      def all = State.get
+
       def update(player: Player) = State.modify { players =>
         players map { p =>
           if (p.id == player) player else p
         }
       }
-      def delete(id: String)     = State.modify { players =>
+
+      def delete(id: String) = State.modify { players =>
         players filterNot (_.id == id)
       }
     }
-    val logging    = ???
-    val service    = PlayerService[F](repository, logging)
+    val logging = ???
+    val service = PlayerService[F](repository, logging)
 
     // perform the test
     service.deleteWorst(???) map { _ =>
@@ -929,8 +1157,8 @@ class Exercise14StateSpec extends AnyFunSuite {
 
     // construct fixture
     val repository = ???
-    val logging    = ???
-    val service    = PlayerService[F](repository, logging)
+    val logging = ???
+    val service = PlayerService[F](repository, logging)
 
     // perform the test
     service.celebrate(???) map { _ =>
