@@ -1,25 +1,17 @@
 package com.evolutiongaming.bootcamp.testing2
 
-import cats.Monad
-import cats.data.State
-import cats.syntax.all._
-import com.evolutiongaming.bootcamp.testing2.Exercise10.Player10
 import com.evolutiongaming.bootcamp.testing2.hal9000.HAL9000
-import munit.Assertions.clue
 import org.mockito.ArgumentMatchers.any
 import org.mockito.MockitoSugar
-
-import java.util.concurrent.atomic.AtomicReference
 import org.scalatest.EitherValues
 import org.scalatest.freespec.AnyFreeSpec
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.funsuite.AsyncFunSuite
+import org.scalatest.funsuite.{AnyFunSuite, AsyncFunSuite}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.nowarn
-import scala.concurrent.Future
-import scala.concurrent.Promise
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
 // *Introduction*
 //
@@ -276,9 +268,6 @@ class CalculatorSpec extends AnyFlatSpec {
 // Now break one of the tests, i.e. change `calculator.enter(1)` to
 // `calculator.enter(2)`. Observe the output. Do you like the input?
 // How does it compare to what you seen in `Exercise1`?
-
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 class Calculator1Spec extends AnyFlatSpec with Matchers {
 
@@ -662,19 +651,18 @@ class Exercise10aSpec extends munit.FunSuite {
     override def info(message: String): Unit = messages = message :: messages
   }
 
-  class Fixture {
-    val repository = new TestPlayerRepository(
-      List(
-        Player10("1", "Ivan", "test0@mail.com", 3),
-        Player10("2", "Vovan", "test1@mail.com", 5),
-        Player10("3", "Oleg", "test2@mail.com", 7)
-      )
-    )
-    val logging = new TestLogging
-    val service: PlayerService = PlayerService(repository, logging)
-  }
-
   test("PlayerService.deleteWorst works correctly") {
+    class Fixture {
+      val repository = new TestPlayerRepository(
+        List(
+          Player10("1", "Ivan", "test0@mail.com", 3),
+          Player10("2", "Vovan", "test1@mail.com", 5),
+          Player10("3", "Oleg", "test2@mail.com", 7)
+        )
+      )
+      val logging = new TestLogging
+      val service: PlayerService = PlayerService(repository, logging)
+    }
 
     // construct fixture
     val fixture = new Fixture
@@ -782,7 +770,7 @@ object Exercise12 {
   //
   val promise: Promise[Int] = Promise()
 
-  import scala.util.{Success, Failure}
+  import scala.util.{Failure, Success}
 
   def future2: Future[Int] = {
     val future = promise.future
@@ -806,7 +794,7 @@ object Exercise12 {
   // Set the value to another one:
   storage.set(List(5, 6, 7))
   // Get the current value from the storage:
-  val list = storage.get()
+  val list: Seq[Int] = storage.get()
 
   case class Player(id: String, name: String, email: String, score: Int)
 
@@ -845,10 +833,23 @@ object Exercise12 {
     /** Creates a new service working with existing repository */
     def apply(repository: PlayerRepository, logging: Logging): PlayerService = new PlayerService {
 
-      def deleteWorst(minimumScore: Int) = ???
+      def deleteWorst(minimumScore: Int): Future[Unit] = for {
+        all <- repository.all
+        lowerThan = all.filter(_.score < minimumScore)
+        /*effects = lowerThan.map(p => repository.delete(p.id))
+        _ <- Future.sequence(effects)*/
+        //_ <- Future.traverse(lowerThan)(p => repository.delete(p.id))
+        _ <- Future.traverse(lowerThan) { player =>
+          repository.delete(player.id).flatMap { _ =>
+            logging.info(s"Deleted player with id: ${player.id}")
+          }
+        }
+      } yield ()
 
-      def celebrate(bonus: Int) = ???
-
+      def celebrate(bonus: Int): Future[Unit] = for {
+        all <- repository.all
+        _ <- Future.traverse(all)(p => repository.update(p.copy(score = p.score + bonus)))
+      } yield ()
     }
 
   }
@@ -861,311 +862,106 @@ object Exercise12 {
 //
 // sbt:scala-bootcamp> testOnly *testing2.Exercise12Spec
 //
+
+import com.evolutiongaming.bootcamp.testing2.Exercise12.{Player, PlayerRepository}
+
+class FuturePlayerRepository(initialPlayers: List[Player])(implicit ec: ExecutionContext) extends PlayerRepository {
+  private val storage: AtomicReference[List[Player]] = new AtomicReference(initialPlayers)
+
+  override def byId(id: String): Future[Option[Player]] = Future {
+    storage.get().find(_.id == id)
+  }(ec)
+
+  override def all: Future[List[Player]] = Future {
+    storage.get()
+  }(ec)
+
+  override def update(player: Player): Future[Unit] = Future {
+    storage.updateAndGet(_.map {
+      case p if p.id == player.id => player
+      case p => p
+    })
+    ()
+  }(ec)
+
+  override def delete(id: String): Future[Unit] = Future {
+    storage.updateAndGet(_.filterNot(_.id == id))
+    ()
+  }(ec)
+}
+
+import com.evolutiongaming.bootcamp.testing2.Exercise12.Logging
+
+class FutureLogging(implicit ec: ExecutionContext) extends Logging {
+  @volatile var messages: List[String] = Nil
+
+  override def info(message: String): Future[Unit] = Future {
+    synchronized {
+      messages = message :: messages
+    }
+  }
+
+  def getMessages: List[String] = synchronized {
+    messages
+  }
+}
+
 class Exercise12Spec extends AsyncFunSuite {
 
   import Exercise12._
 
   test("PlayerService.deleteWorst works correctly") {
-
     // construct fixture
-    val repository = ???
-    val logging = ???
+    val repository = new FuturePlayerRepository(
+      List(
+        Player("1", "Ivan", "test0@mail.com", 3),
+        Player("2", "Igor", "test1@mail.com", 5),
+        Player("3", "Oleg", "test2@mail.com", 7)
+      )
+    )(executionContext)
+    val logging = new FutureLogging
     val service = PlayerService(repository, logging)
 
     // perform the test
-    service.deleteWorst(???) map { _ =>
-      // validate the results
-      assert(???)
-    }
+    service.deleteWorst(5).flatMap { _ =>
+      // validate the repository state
+      repository.all.map { players =>
+        assert(players == List(
+          Player("2", "Igor", "test1@mail.com", 5),
+          Player("3", "Oleg", "test2@mail.com", 7)
+        ))
+      }(executionContext)
+    }(executionContext).flatMap { _ =>
+      // validate logging state
+      assert(logging.messages.contains("Deleted player with id: 1"))
+    }(executionContext)
   }
 
   test("PlayerService.celebrate works correctly") {
-
     // construct fixture
-    val repository = ???
-    val logging = ???
+    val repository = new FuturePlayerRepository(
+      List(
+        Player("1", "Ivan", "test0@mail.com", 3),
+        Player("2", "Igor", "test1@mail.com", 5),
+        Player("3", "Oleg", "test2@mail.com", 7)
+      )
+    )(executionContext)
+    val logging = new FutureLogging
     val service = PlayerService(repository, logging)
-
     // perform the test
-    service.celebrate(???) map { _ =>
+    val testFuture = for {
+      _       <- service.celebrate(3)
+      players <- repository.all
+    } yield {
       // validate the results
-      assert(???)
+      assert(players == List(
+        Player("1", "Ivan", "test0@mail.com", 6),
+        Player("2", "Igor", "test1@mail.com", 8),
+        Player("3", "Oleg", "test2@mail.com", 10)
+      ))
     }
 
+    // Await the test future to ensure it completes before the test ends
+    testFuture.map(_ => succeed)
   }
-
-}
-// *Exercise 13*
-//
-// What are main problems of asynchronous testing? Try to name or guess them
-// without reading further.
-//
-// One of the biggest is that we cannot really say if the test did not complete
-// because of the bug or because it is still working.
-//
-// Modify Exercise 12 code so the test fails with a timeout by forgetting
-// to complete the Promise (a bug), or just doing a long work (by calling
-// `Thread.sleep(...)` in the code).
-//
-// Hint: never use `Thread.sleep` in your production code or test unless you
-// are really sure what are you doing. We can discuss why later if we have
-// the time.
-
-// *Exercise 14*
-//
-// Warning: We did not introduce you to some of the
-// concepts used below, but I really wanted you to show the trick, so you
-// can have something to look forward to. It is fine if you do not understand
-// what is happening below. Feel free to ask questions though.
-//
-// How can we avoid the issues of asynchronous execution? We can abstract
-// over the way we execute!
-//
-object Exercise14 {
-
-  // Remember what other structure allowed to do `map` and `flatMap`? It is
-  // `Option`! What if we could replace `Future` with `Option` in our code
-  // and make it synchronous magically.
-  //
-  // Remember Scala allows you to do pass type parameters to function in
-  // classes like this?
-  def function1[T](list: List[T]): Option[T] = list.headOption
-
-  // And then call the function like this?
-  val result: Option[Int] = function1(List(1, 2, 3))
-
-  // We will use the same trick now and pass `Option` instead of `Future`
-  // to the code.
-  //
-  // There is one catch. You have to use `T[_]` instead of `T` if you pass
-  // a higher kinded type (see previous lecture).
-  //
-  case class Player(id: String, name: String, email: String, score: Int)
-
-  trait PlayerRepository[F[_]] {
-    def byId(id: String): F[Option[Player]]
-
-    def all: F[List[Player]]
-
-    def update(player: Player): F[Unit]
-
-    def delete(id: String): F[Unit]
-  }
-
-  trait Logging[F[_]] {
-    def info(message: String): F[Unit]
-  }
-
-  trait PlayerService[F[_]] {
-
-    /** Deletes all the players with score lower than minimum.
-     *
-     * @param miniumumScore the minimum score the player stays with.
-     */
-    def deleteWorst(minimumScore: Int): F[Unit]
-
-    /** Adds bonus points to score to all existing players
-     *
-     * @param bonus the bonus points to add to the players.
-     */
-    def celebrate(bonus: Int): F[Unit]
-
-  }
-
-  object PlayerService {
-
-    // Note: we are using special `Monad` type from `cats` library to avoid some boilerplate.
-    // It gives us `map` and `flatMap` methods on our `F`. I.e. it says:
-    // "we have something that have `map` and `flatMap` on it".
-    // You will learn more about `cats` library in next lecture.
-
-    /** Creates a new service working with existing repository */
-    def apply[F[_] : Monad](repository: PlayerRepository[F], logging: Logging[F]): PlayerService[F] =
-      new PlayerService[F] {
-
-        def deleteWorst(minimumScore: Int) = ???
-
-        def celebrate(bonus: Int) = ???
-
-      }
-
-  }
-
-}
-
-// Now let's first copy-paste the code form Exercise 12 and replace all
-// `Future` calls by `F` to prove it actually works.
-//
-// sbt:scala-bootcamp> testOnly *testing2.Exercise14FutureSpec
-//
-class Exercise14FutureSpec extends AsyncFunSuite {
-
-  import Exercise14._
-
-  test("PlayerService.deleteWorst works correctly") {
-
-    // construct fixture
-    val repository = ???
-    val logging = ???
-    val service = PlayerService[Future](repository, logging)
-
-    // perform the test
-    service.deleteWorst(???) map { _ =>
-      // validate the results
-      assert(???)
-    }
-  }
-
-  test("PlayerService.celebrate works correctly") {
-
-    // construct fixture
-    val repository = ???
-    val logging = ???
-    val service = PlayerService[Future](repository, logging)
-
-    // perform the test
-    service.celebrate(???) map { _ =>
-      // validate the results
-      assert(???)
-    }
-
-  }
-
-}
-
-// Now let's copy-paste the code form above and replace all
-// `Future` calls by `Option` to enjoy rock stable tests.
-//
-// sbt:scala-bootcamp> testOnly *testing2.Exercise14OptionSpec
-//
-// Bonus task: try to break the tests with `Thread.sleep(...)` call
-// as above.
-//
-class Exercise14OptionSpec extends AnyFunSuite {
-
-  import Exercise14._
-
-  test("PlayerService.deleteWorst works correctly") {
-
-    // construct fixture
-    val repository = ???
-    val logging = ???
-    val service = PlayerService[Option](repository, logging)
-
-    // perform the test
-    service.deleteWorst(???) map { _ =>
-      // validate the results
-      assert(???)
-    }
-  }
-
-  test("PlayerService.celebrate works correctly") {
-
-    // construct fixture
-    val repository = ???
-    val logging = ???
-    val service = PlayerService[Option](repository, logging)
-
-    // perform the test
-    service.celebrate(???) map { _ =>
-      // validate the results
-      assert(???)
-    }
-
-  }
-
-}
-//
-// How can we be sure `Future` and `Option` behave the same way?
-//
-// We know they both have the same methods `map` and `flatMap`, i.e. they are Monads,
-// but these could be doing anything, no?
-//
-// This is a valid question, and you cannot just rely on them behaving similar
-// unless proven.
-//
-// The "behavior" of the similar structures is usually called a law. The laws
-// for common structures such as `Monad` or `Traversable` are proven and commonly
-// tested using property-based testing libraries such as ScalaCheck.
-//
-// These libraries allow checking that the specific property stands true not
-// for a single parameter value, but for a whole range or domain.
-//
-// We will not do property testing this time, but you can read more about it here:
-// https://www.scalatest.org/user_guide/property_based_testing
-
-// What is the big problem with the code we wrote above? We use `var` and
-// `AtomicReference` in our stubs a lot. It is a mutable state. Scala developers
-// hate mutable state a lot.
-//
-// Besides that, we have to go inside of the stub and take data out of it sometimes,
-// which might not always be convenient. Can we use our `Option` trick to somehow
-// avoid it?
-//
-// And yes, we can, there is a special type in `cats` library mentioned above.
-// It is called `State` and also have the `map` and `flatMap` methods we need.
-// Plus it has "state" storage which we can use in our tests!
-//
-// Hint: `State` is rarely useful outside of testing. There are much better and
-// more performant structures for that such as `Ref`. Do not go and refactor all
-// your code to `State`.
-//
-// You can read more about it here:
-// https://typelevel.org/cats/datatypes/state.html
-//
-// Let's use it to simplify our tests a bit.
-//
-// sbt:scala-bootcamp> testOnly *testing2.Exercise14StateSpec
-//
-// Bonus task: also store logging statements in `State`.
-//
-class Exercise14StateSpec extends AnyFunSuite {
-
-  import Exercise14._
-
-  type F[T] = State[List[Player], T]
-
-  test("PlayerService.deleteWorst works correctly") {
-
-    // construct fixture
-    val repository = new PlayerRepository[F] {
-      def byId(id: String) = State.pure(None)
-
-      def all = State.get
-
-      def update(player: Player) = State.modify { players =>
-        players map { p =>
-          if (p.id == player) player else p
-        }
-      }
-
-      def delete(id: String) = State.modify { players =>
-        players filterNot (_.id == id)
-      }
-    }
-    val logging = ???
-    val service = PlayerService[F](repository, logging)
-
-    // perform the test
-    service.deleteWorst(???) map { _ =>
-      // validate the results
-      assert(???)
-    }
-  }
-
-  test("PlayerService.celebrate works correctly") {
-
-    // construct fixture
-    val repository = ???
-    val logging = ???
-    val service = PlayerService[F](repository, logging)
-
-    // perform the test
-    service.celebrate(???) map { _ =>
-      // validate the results
-      assert(???)
-    }
-
-  }
-
 }
