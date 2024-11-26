@@ -23,16 +23,27 @@ object Practically extends IOApp {
     // assume precisely users with ids 1..100 exist in our imaginary database
     // users must have different ids
     def findAgeMatch[F[_]: Monad](
-      findUser: FindUser[F]
-    ): F[Option[(User, User)]] = ???
+                                   findUser: FindUser[F]
+                                 ): F[Option[(User, User)]] = {
+      def loop(ids: List[Int]): F[Option[(User, User)]] = ids match {
+        case id1 :: tail =>
+          for {
+            user1 <- findUser(id1)
+            matchFound <- tail
+              .traverse { id2 =>
+                findUser(id2).map(user2 => if (user1.age == user2.age) Some((user1, user2)) else None)
+              }
+              .map(_.flatten.headOption)
+            result <- matchFound match {
+              case Some(pair) => Monad[F].pure(Some(pair))
+              case None       => loop(tail)
+            }
+          } yield result
+        case Nil => Monad[F].pure(None)
+      }
 
-    // // for different users
-    // def findAgeMatch(
-    //   findUser: FindUser[IO],
-    // ): IO[Option[(User, User)]] = {
-    //   findUser(1)
-    //   println("user found by id 1")
-    // }
+      loop((1 to 100).toList)
+    }
 
     def main: IO[Unit] = {
       val line = s"findBirthdayMatch: ${Exercise1.findAgeMatch(Exercise1.findFakeUserLocal[Id])}"
