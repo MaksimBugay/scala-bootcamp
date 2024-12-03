@@ -220,7 +220,22 @@ object Exercise1_Imperative {
  */
 object Exercise1_Functional extends IOApp {
 
-  def process(console: Console, counter: Int = 0): IO[ExitCode] = ???
+  def process(console: Console, counter: Int = 0): IO[ExitCode] = {
+    for {
+      _       <- console.putString("What is your favourite animal?")
+      animal  <- console.readString
+      output  <- IO(Exercise1_Common.response(animal))
+      result  <- output match {
+        case Some(x) =>
+          console.putString(x).as(ExitCode.Success) // Print the response and exit with success
+        case None if counter >= 2 =>
+          console.putString("I am disappointed. You have failed to answer too many times.")
+            .as(ExitCode.Error) // Print disappointment message and exit with error
+        case None =>
+          console.putString("Empty input is not valid, try again...") *> process(console, counter + 1)
+      }
+    } yield result
+  }
 
   def run(args: List[String]): IO[ExitCode] = process(ConsoleIO)
 }
