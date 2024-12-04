@@ -14,12 +14,18 @@ object Fibers extends IOApp {
   val N = 100
 
   def printMany(string: String): IO[Unit] =
-    List.fill(N)(IO.delay(println(string))).sequence.void
+    List.fill(N)(IO.delay(println(string))).sequence.void *> IO.raiseError(new Exception("Uuuups!"))
 
   val program: IO[Unit] =
     for {
-      fiber1 <- printMany("a")
-      fiber2 <- printMany("   b")
+      fiber1 <- printMany("a").start
+      fiber2 <- printMany("   b").start
+      //_ <- List(printMany("a"), printMany("   b")).parSequence
+
+      _ <- fiber1.cancel
+
+      _ <- fiber1.join.flatMap(_.embedError)
+      _ <- fiber2.join.flatMap(_.embedError)
 
       _ <- IO.delay(println("SUCCESS"))
     } yield ()
